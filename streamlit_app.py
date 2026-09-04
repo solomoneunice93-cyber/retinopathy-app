@@ -19,7 +19,7 @@ MODEL_PATH = "diabetic_retinopathy_resnet18.pth"
 @st.cache_resource
 def load_medical_model():
     if not os.path.exists(MODEL_PATH):
-        url = f'https://google.com{MODEL_FILE_ID}'
+        url = f'https://google.com{1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0}'
         gdown.download(url, MODEL_PATH, quiet=False)
     
     # Recreate architecture
