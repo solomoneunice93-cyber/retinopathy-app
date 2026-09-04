@@ -177,7 +177,7 @@ if page == "🩻 Diagnostic Image Screening":
                 st.success(f"Diagnostic Finding: {diagnosis}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# Ground Truth Feedback Widget
+        # Ground Truth Feedback Widget
         st.markdown('<div class="med-card">', unsafe_allow_html=True)
         st.subheader("2. Ground Truth Validation (For Dynamic Metrics)")
         actual_label = st.radio(
