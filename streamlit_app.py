@@ -252,10 +252,4 @@ elif page == "📋 Patient Assessment Logs":
         st.dataframe(st.session_state.history, use_container_width=True)
     else:
         st.info("No saved records found.")
-      st.markdown('<div class="med-card">', unsafe_allow_html=True)
-st.subheader("Historic Upload Logs")
-if len(st.session_state.history) > 0:
-    st.dataframe(st.session_state.history, use_container_width=True)
-else:
-    st.info("No saved records found.")
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
