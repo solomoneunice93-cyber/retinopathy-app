@@ -9,7 +9,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import gdown
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from datetime import datetime
+
+# --- EDIT YOUR TEAM DETAILS HERE ---
+TEAM_NAME = "Your Team Name"
+SUBMISSION_DATE = "March 04, 2026"
+PROJECT_VERSION = "v1.0"
 
 # --- PAGE CONFIGURATION & MEDICAL STYLING ---
 st.set_page_config(
@@ -36,7 +41,8 @@ st.markdown("""
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     .main-title { font-size: 2.2rem; font-weight: 700; color: #FFFFFF; margin-bottom: 0.2rem; }
-    .subtitle { font-size: 1rem; color: #93C5FD; }
+    .subtitle { font-size: 1rem; color: #93C5FD; margin-bottom: 0.8rem; }
+    .team-meta { font-size: 0.85rem; color: #E2E8F0; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; }
     
     /* Medical Card Enclosures */
     .med-card {
@@ -57,17 +63,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Header Banner
-st.markdown("""
+# Header Banner with Team Metadata
+st.markdown(f"""
     <div class="header-box">
         <div class="main-title">🩺 Clinical Decision Support Portal</div>
-        <div class="subtitle">Automated Diagnostic Assessment & Microvascular Evaluation | Opthalmology AI Support</div>
+        <div class="subtitle">Automated Diagnostic Assessment & Microvascular Evaluation | Ophthalmology AI Support</div>
+        <div class="team-meta">
+            <strong>Developed by:</strong> {TEAM_NAME} &nbsp;|&nbsp; 
+            <strong>Submission Date:</strong> {SUBMISSION_DATE} &nbsp;|&nbsp; 
+            <strong>Version:</strong> {PROJECT_VERSION}
+        </div>
     </div>
 """, unsafe_allow_html=True)
 
 # --- INITIALIZE SESSION STATE FOR INPUT TRACKING ---
 if 'history' not in st.session_state:
-    st.session_state.history = pd.DataFrame(columns=['Filename', 'Predicted', 'Ground Truth', 'Confidence'])
+    st.session_state.history = pd.DataFrame(columns=['Filename', 'Predicted Finding', 'Confidence', 'Timestamp'])
 
 # --- AUTOMATIC MODEL DOWNLOAD ---
 MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0' 
@@ -128,11 +139,15 @@ def get_medical_guidelines(diagnosis_class):
 # --- SIDEBAR CLINICAL NAVIGATION ---
 st.sidebar.image("https://img.icons8.com/color/96/ophthalmology.png", width=70)
 st.sidebar.title("Clinical Navigation")
+
 page = st.sidebar.radio("Select View:", [
     "🩻 Diagnostic Image Screening", 
-    "📊 Input Metrics & Confusion Matrix", 
     "📋 Patient Assessment Logs"
 ])
+
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"**Team:** {TEAM_NAME}")
+st.sidebar.markdown(f"**Date:** {SUBMISSION_DATE}")
 
 # PAGE 1: DIAGNOSTIC SCREENING
 if page == "🩻 Diagnostic Image Screening":
@@ -164,6 +179,16 @@ if page == "🩻 Diagnostic Image Screening":
         diagnosis = classes[predicted.item()]
         confidence = float(probs[predicted.item()]) * 100
         
+        # Auto-log to history state if not already logged
+        if not ((st.session_state.history['Filename'] == uploaded_file.name).any()):
+            new_entry = pd.DataFrame([{
+                'Filename': uploaded_file.name,
+                'Predicted Finding': diagnosis,
+                'Confidence': f"{confidence:.1f}%",
+                'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }])
+            st.session_state.history = pd.concat([st.session_state.history, new_entry], ignore_index=True)
+        
         with col2:
             st.markdown('<div class="med-card">', unsafe_allow_html=True)
             st.subheader("Automated Analysis Output")
@@ -176,74 +201,14 @@ if page == "🩻 Diagnostic Image Screening":
             else:
                 st.success(f"Diagnostic Finding: {diagnosis}")
             st.markdown('</div>', unsafe_allow_html=True)
-        # Ground Truth Feedback Widget
-        st.markdown('<div class="med-card">', unsafe_allow_html=True)
-        st.subheader("2. Ground Truth Validation (For Dynamic Metrics)")
-        actual_label = st.radio(
-            "Select confirmed clinical diagnosis to update systemic evaluation metrics:",
-            classes,
-            horizontal=True
-        )
-        
-        if st.button("Log Finding to Clinical Record"):
-            new_entry = pd.DataFrame([{
-                'Filename': uploaded_file.name,
-                'Predicted': diagnosis,
-                'Ground Truth': actual_label,
-                'Confidence': f"{confidence:.1f}%"
-            }])
-            st.session_state.history = pd.concat([st.session_state.history, new_entry], ignore_index=True)
-            st.success("Record successfully added to metric database.")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
+
         # Management Guidelines
         st.markdown('<div class="med-card">', unsafe_allow_html=True)
-        st.subheader("3. Clinical Guidelines")
+        st.subheader("2. Clinical Guidelines")
         st.text_area("Protocol Recommendations", value=get_medical_guidelines(diagnosis), height=200)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# PAGE 2: METRICS & CONFUSION MATRIX
-elif page == "📊 Input Metrics & Confusion Matrix":
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("Performance Metrics Across Uploaded Inputs")
-    
-    if len(st.session_state.history) == 0:
-        st.warning("No input data logged yet. Upload scans in the screening tab and submit ground truth records to view live metrics.")
-    else:
-        y_true = st.session_state.history['Ground Truth']
-        y_pred = st.session_state.history['Predicted']
-        
-        # Calculate Input Metrics
-        acc = accuracy_score(y_true, y_pred)
-        prec = precision_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
-        rec = recall_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
-        f1 = f1_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
-        
-        # Metric Columns
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Accuracy", f"{acc*100:.1f}%")
-        m2.metric("Precision", f"{prec*100:.1f}%")
-        m3.metric("Recall", f"{rec*100:.1f}%")
-        m4.metric("F1-Score", f"{f1*100:.1f}%")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Confusion Matrix
-        st.markdown('<div class="med-card">', unsafe_allow_html=True)
-        st.subheader("Confusion Matrix of Analyzed Scans")
-        
-        labels = ['Diseased (Diabetic Retinopathy)', 'Normal (Healthy)']
-        cm = confusion_matrix(y_true, y_pred, labels=labels)
-        
-        fig, ax = plt.subplots(figsize=(6, 4))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Diseased', 'Normal'], yticklabels=['Diseased', 'Normal'], ax=ax)
-        plt.xlabel('Predicted Label')
-        plt.ylabel('Confirmed Ground Truth')
-        plt.title('Live Confusion Matrix')
-        
-        st.pyplot(fig)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# PAGE 3: PATIENT RECORDS LOG
+# PAGE 2: PATIENT RECORDS LOG
 elif page == "📋 Patient Assessment Logs":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Historic Upload Logs")
