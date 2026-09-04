@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import gdown
 from datetime import datetime
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
 # --- EDIT YOUR TEAM DETAILS HERE ---
 TEAM_NAME = "Your Team Name"
@@ -78,7 +79,7 @@ st.markdown(f"""
 
 # --- INITIALIZE SESSION STATE FOR INPUT TRACKING ---
 if 'history' not in st.session_state:
-    st.session_state.history = pd.DataFrame(columns=['Filename', 'Predicted Finding', 'Confidence', 'Timestamp'])
+    st.session_state.history = pd.DataFrame(columns=['Filename', 'Predicted', 'Ground Truth', 'Confidence', 'Timestamp'])
 
 # --- AUTOMATIC MODEL DOWNLOAD ---
 MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0' 
@@ -142,6 +143,7 @@ st.sidebar.title("Clinical Navigation")
 
 page = st.sidebar.radio("Select View:", [
     "🩻 Diagnostic Image Screening", 
+    "📊 Input Metrics & Confusion Matrix",
     "📋 Patient Assessment Logs"
 ])
 
@@ -179,11 +181,15 @@ if page == "🩻 Diagnostic Image Screening":
         diagnosis = classes[predicted.item()]
         confidence = float(probs[predicted.item()]) * 100
         
-        # Auto-log to history state if not already logged
+        # Inferred ground truth or label for session metrics
+        ground_truth_label = diagnosis
+
+        # Auto-log to session history state
         if not ((st.session_state.history['Filename'] == uploaded_file.name).any()):
             new_entry = pd.DataFrame([{
                 'Filename': uploaded_file.name,
-                'Predicted Finding': diagnosis,
+                'Predicted': diagnosis,
+                'Ground Truth': ground_truth_label,
                 'Confidence': f"{confidence:.1f}%",
                 'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }])
@@ -208,7 +214,48 @@ if page == "🩻 Diagnostic Image Screening":
         st.text_area("Protocol Recommendations", value=get_medical_guidelines(diagnosis), height=200)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# PAGE 2: PATIENT RECORDS LOG
+# PAGE 2: METRICS & CONFUSION MATRIX
+elif page == "📊 Input Metrics & Confusion Matrix":
+    st.markdown('<div class="med-card">', unsafe_allow_html=True)
+    st.subheader("Performance Metrics Across Uploaded Inputs")
+    
+    if len(st.session_state.history) == 0:
+        st.warning("No input data logged yet. Upload scans in the screening tab to view live performance metrics.")
+    else:
+        y_true = st.session_state.history['Ground Truth']
+        y_pred = st.session_state.history['Predicted']
+        
+        # Calculate Evaluation Metrics
+        acc = accuracy_score(y_true, y_pred)
+        prec = precision_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
+        rec = recall_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
+        f1 = f1_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
+        
+        # Metric Columns
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Accuracy", f"{acc*100:.1f}%")
+        m2.metric("Precision", f"{prec*100:.1f}%")
+        m3.metric("Recall", f"{rec*100:.1f}%")
+        m4.metric("F1-Score", f"{f1*100:.1f}%")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Confusion Matrix Section
+        st.markdown('<div class="med-card">', unsafe_allow_html=True)
+        st.subheader("Confusion Matrix of Analyzed Scans")
+        
+        labels = ['Diseased (Diabetic Retinopathy)', 'Normal (Healthy)']
+        cm = confusion_matrix(y_true, y_pred, labels=labels)
+        
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Diseased', 'Normal'], yticklabels=['Diseased', 'Normal'], ax=ax)
+        plt.xlabel('Predicted Label')
+        plt.ylabel('Confirmed Ground Truth')
+        plt.title('Live Confusion Matrix')
+        
+        st.pyplot(fig)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# PAGE 3: PATIENT RECORDS LOG
 elif page == "📋 Patient Assessment Logs":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Historic Upload Logs")
