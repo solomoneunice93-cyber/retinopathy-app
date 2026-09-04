@@ -4,7 +4,7 @@ torchvision
 pillow
 pandas
 numpy
-matplotlib
-seaborn
+plotly
 gdown
-scikit-learn
+opencv-python-headless
+reportlab
