@@ -1,3 +1,4 @@
+.:
 import os
 import torch
 import torch.nn as nn
@@ -172,12 +173,12 @@ if page == "🩻 Diagnostic Image Screening":
             st.progress(float(probs[1]), text=f"Healthy Retina: {probs[1]*100:.1f}%")
             
             if "Diseased" in diagnosis:
-                st.error(f"**Diagnostic Finding:** {diagnosis}")
+                st.error(f"Diagnostic Finding: {diagnosis}")
             else:
-                st.success(f"**Diagnostic Finding:** {diagnosis}")
+                st.success(f"Diagnostic Finding: {diagnosis}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Ground Truth Feedback Widget
+# Ground Truth Feedback Widget
         st.markdown('<div class="med-card">', unsafe_allow_html=True)
         st.subheader("2. Ground Truth Validation (For Dynamic Metrics)")
         actual_label = st.radio(
@@ -249,6 +250,10 @@ elif page == "📋 Patient Assessment Logs":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Historic Upload Logs")
     if len(st.session_state.history) > 0:
+        st.dataframe(st.session_state.history, use_container_width=True)
+    else:
+        st.info("No saved records found.")
+    st.markdown('</div>', unsafe_allow_html=True) 0:
         st.dataframe(st.session_state.history, use_container_width=True)
     else:
         st.info("No saved records found.")
