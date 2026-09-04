@@ -1,4 +1,5 @@
 import os
+import io
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
@@ -6,11 +7,13 @@ from PIL import Image
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
 import gdown
+import cv2
 from datetime import datetime
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # --- EDIT YOUR TEAM DETAILS HERE ---
 TEAM_NAME = "ML--5th Floor--Group 3"
@@ -27,12 +30,10 @@ st.set_page_config(
 # Custom Clinical CSS Theme
 st.markdown("""
 <style>
-/* Global Page Styling */
 .stApp {
     background-color: #F8FAFC;
 }
 
-/* Header Container */
 .header-box {
     background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
     padding: 24px;
@@ -62,7 +63,6 @@ st.markdown("""
     padding-top: 8px;
 }
 
-/* Medical Card Enclosures */
 .med-card {
     background-color: #FFFFFF;
     border: 1px solid #E2E8F0;
@@ -73,7 +73,6 @@ st.markdown("""
     margin-bottom: 20px;
 }
 
-/* Severity Color Alert Boxes */
 .alert-normal {
     background-color: #D1FAE5;
     color: #065F46;
@@ -114,7 +113,6 @@ st.markdown("""
     margin-top: 10px;
 }
 
-/* Custom Sidebar */
 [data-testid="stSidebar"] {
     background-color: #F1F5F9;
     border-right: 1px solid #E2E8F0;
@@ -122,7 +120,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header Banner with Team Metadata
+# Header Banner
 st.markdown(f"""
 <div class="header-box">
     <div class="main-title">🩺 Clinical Decision Support Portal</div>
@@ -135,11 +133,14 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- INITIALIZE SESSION STATE FOR INPUT TRACKING ---
+# --- INITIALIZE SESSION STATE ---
 if 'history' not in st.session_state:
     st.session_state.history = pd.DataFrame(columns=['Filename', 'Predicted', 'Ground Truth', 'Confidence', 'Timestamp'])
 
-# --- AUTOMATIC MODEL DOWNLOAD ---
+if 'patient_docs' not in st.session_state:
+    st.session_state.patient_docs = []
+
+# --- AUTOMATIC MODEL DOWNLOAD & GRAD-CAM CAPABLE RESNET ---
 MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0'
 MODEL_PATH = "diabetic_retinopathy_resnet18.pth"
 
@@ -166,6 +167,88 @@ try:
 except Exception as e:
     st.error("⚠️ Model Loading Error: Unable to fetch model weights from Google Drive.")
 
+# --- GRAD-CAM GENERATOR FUNCTION ---
+def generate_gradcam(input_tensor, model, original_image):
+    gradients = []
+    activations = []
+
+    def backward_hook(module, grad_input, grad_output):
+        gradients.append(grad_output[0])
+
+    def forward_hook(module, input, output):
+        activations.append(output)
+
+    target_layer = model.layer4[1].conv2
+    h1 = target_layer.register_forward_hook(forward_hook)
+    h2 = target_layer.register_full_backward_hook(backward_hook)
+
+    output = model(input_tensor)
+    _, target_class = output.max(1)
+    
+    model.zero_grad()
+    output[0, target_class].backward()
+
+    h1.remove()
+    h2.remove()
+
+    pooled_gradients = torch.mean(gradients[0], dim=[0, 2, 3])
+    activation = activations[0][0]
+    for i in range(activation.size(0)):
+        activation[i, :, :] *= pooled_gradients[i]
+
+    heatmap = torch.mean(activation, dim=0).squeeze().detach().cpu().numpy()
+    heatmap = np.maximum(heatmap, 0)
+    if np.max(heatmap) > 0:
+        heatmap /= np.max(heatmap)
+
+    orig_np = np.array(original_image.resize((128, 128)))
+    heatmap_resized = cv2.resize(heatmap, (128, 128))
+    heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
+    heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+    
+    overlay = cv2.addWeighted(orig_np, 0.6, heatmap_colored, 0.4, 0)
+    return Image.fromarray(overlay)
+
+# --- PDF REPORT GENERATOR ---
+def create_pdf_report(filename, stage_name, diseased_prob, guidelines):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor='#1E3A8A',
+        spaceAfter=12
+    )
+    
+    body_style = ParagraphStyle(
+        'BodyStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=14,
+        spaceAfter=8
+    )
+
+    story = [
+        Paragraph("Diabetic Retinopathy Diagnostic Assessment Report", title_style),
+        Paragraph(f"<b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", body_style),
+        Paragraph(f"<b>File Processed:</b> {filename}", body_style),
+        Paragraph(f"<b>Team / Author:</b> {TEAM_NAME}", body_style),
+        Spacer(1, 12),
+        Paragraph(f"<b>Diagnostic Finding:</b> {stage_name}", body_style),
+        Paragraph(f"<b>DR Probability Score:</b> {diseased_prob*100:.2f}%", body_style),
+        Spacer(1, 12),
+        Paragraph("<b>Clinical Guidelines & Protocol Recommendations:</b>", body_style),
+        Paragraph(guidelines.replace('\n', '<br/>'), body_style),
+        Spacer(1, 12),
+        Paragraph("<i>Disclaimer: Generated for screening support. Consult a licensed ophthalmologist for official diagnosis.</i>", body_style)
+    ]
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
 # --- MEDICAL TRANSFORMS & STAGED CLINICAL GUIDELINES ---
 predict_transform = transforms.Compose([
     transforms.Resize((128, 128)),
@@ -174,13 +257,6 @@ predict_transform = transforms.Compose([
 ])
 
 def evaluate_severity(diseased_prob):
-    """
-    Evaluates DR staging based on diseased probability score:
-    - Normal: diseased_prob < 0.40 (Green)
-    - Stage 1 (Mild DR): 0.40 <= diseased_prob < 0.60 (Yellow)
-    - Stage 2 (Intermediate DR): 0.60 <= diseased_prob < 0.75 (Soft Red)
-    - Stage 3 (Severe DR): diseased_prob >= 0.75 (Bright Red)
-    """
     if diseased_prob < 0.40:
         stage_name = "Normal (Healthy Retina)"
         alert_class = "alert-normal"
@@ -216,7 +292,7 @@ def evaluate_severity(diseased_prob):
             "• Follow-Up Schedule: Repeat clinical retinal evaluation within 3 to 6 months.\n\n"
             "🚨 Disclaimer: Requires clinical correlation and professional ophthalmic assessment."
         )
-    else:  # diseased_prob >= 0.75
+    else:
         stage_name = "Stage 3: Severe Diabetic Retinopathy"
         alert_class = "alert-stage3"
         guidelines = (
@@ -273,7 +349,7 @@ if page == "📖 Overview & Model Architecture":
     with col_b:
         st.markdown("**2. Training Pipeline & Class Imbalance Handling**")
         st.markdown("""
-        * **Data Preprocessing & Augmentation:** Images resized to `128x128`, transformed to PyTorch Tensors, normalized (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`), and augmented with `RandomHorizontalFlip()` and `RandomRotation(15°)`.
+        * **Data Preprocessing & Augmentation:** Images resized to `128x128`, transformed to PyTorch Tensors, normalized, and augmented with `RandomHorizontalFlip()` and `RandomRotation(15°)`.
         * **Data Split:** 80% Training / 20% Validation (`random_split`).
         * **Loss Function:** `CrossEntropyLoss` weighted inversely proportional to class frequencies to combat dataset imbalance.
         * **Optimizer:** Per-layer `Adam` optimizer (Layer 4 `lr = 0.00001`, Fully-Connected head `lr = 0.0001`).
@@ -285,7 +361,6 @@ if page == "📖 Overview & Model Architecture":
     st.subheader("📈 Google Colab Model Training & Validation Evaluation Metrics")
     st.markdown("Below is the recorded training and validation performance across the 5 fine-tuning epochs:")
     
-    # Exact values from your Google Colab training logs
     colab_metrics = pd.DataFrame({
         'Epoch': [1, 2, 3, 4, 5],
         'Train Loss': [0.2381, 0.1070, 0.0681, 0.0419, 0.0229],
@@ -309,15 +384,6 @@ elif page == "🩻 Diagnostic Image Screening":
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert('RGB')
         
-        # Dual Column View
-        col1, col2 = st.columns([1, 1.2])
-        with col1:
-            st.markdown('<div class="med-card">', unsafe_allow_html=True)
-            st.subheader("Retinal Imaging View")
-            st.image(image, use_container_width=True, caption=uploaded_file.name)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # Model Prediction
         img_t = predict_transform(image).unsqueeze(0)
         with torch.no_grad():
             outputs = model(img_t)
@@ -328,7 +394,10 @@ elif page == "🩻 Diagnostic Image Screening":
         
         stage_name, alert_class, clinical_guidelines = evaluate_severity(diseased_prob)
 
-        # Auto-log to session history state
+        # Generate Grad-CAM Heatmap
+        gradcam_img = generate_gradcam(img_t, model, image)
+
+        # Log to Session State
         if not ((st.session_state.history['Filename'] == uploaded_file.name).any()):
             new_entry = pd.DataFrame([{
                 'Filename': uploaded_file.name,
@@ -339,17 +408,41 @@ elif page == "🩻 Diagnostic Image Screening":
             }])
             st.session_state.history = pd.concat([st.session_state.history, new_entry], ignore_index=True)
 
+        col1, col2 = st.columns([1, 1.2])
+        with col1:
+            st.markdown('<div class="med-card">', unsafe_allow_html=True)
+            st.subheader("Retinal Imaging & Grad-CAM Heatmap View")
+            
+            subcol_a, subcol_b = st.columns(2)
+            with subcol_a:
+                st.image(image, use_container_width=True, caption="Original Fundus Scan")
+            with subcol_b:
+                st.image(gradcam_img, use_container_width=True, caption="Grad-CAM Focus Heatmap")
+            st.markdown('</div>', unsafe_allow_html=True)
+
         with col2:
             st.markdown('<div class="med-card">', unsafe_allow_html=True)
             st.subheader("Automated Analysis Output")
-            st.progress(diseased_prob, text=f"Diabetic Retinopathy: {diseased_prob*100:.1f}%")
-            st.progress(normal_prob, text=f"Healthy Retina: {normal_prob*100:.1f}%")
+            st.progress(diseased_prob, text=f"Diabetic Retinopathy Probability: {diseased_prob*100:.1f}%")
+            st.progress(normal_prob, text=f"Healthy Retina Probability: {normal_prob*100:.1f}%")
             
-            # Color-Coded Staging Banner
+            # Uncertainty warning guardrail
+            if 0.38 <= diseased_prob <= 0.42:
+                st.warning("⚠️ Borderline Confidence Assessment — Clinical re-scan or manual review suggested.")
+
             st.markdown(f'<div class="{alert_class}">Diagnostic Finding: {stage_name}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Management Guidelines
+            # PDF Download Button
+            pdf_data = create_pdf_report(uploaded_file.name, stage_name, diseased_prob, clinical_guidelines)
+            st.download_button(
+                label="📄 Download Diagnostic PDF Report",
+                data=pdf_data,
+                file_name=f"DR_Report_{uploaded_file.name.split('.')[0]}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+
         st.markdown('<div class="med-card">', unsafe_allow_html=True)
         st.subheader("2. Clinical Staging Guidelines")
         st.text_area("Protocol Recommendations", value=clinical_guidelines, height=220)
@@ -360,7 +453,6 @@ elif page == "📊 Input Metrics & Confusion Matrix":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Final Model Validation Evaluation Metrics (Google Colab Final Epoch)")
     
-    # Colab Final Validation Metrics Display
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Accuracy", "99.21%")
     m2.metric("Precision", "99.22%")
@@ -368,30 +460,62 @@ elif page == "📊 Input Metrics & Confusion Matrix":
     m4.metric("F1-Score", "99.21%")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Confusion Matrix Section
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("Confusion Matrix (Class-Balanced Model)")
+    st.subheader("Interactive Confusion Matrix (Class-Balanced Model)")
     
-    # Array matching the exact Colab output values: TP=547, FN=7, FP=2, TN=580
-    cm_colab = np.array([[547, 7],
-                         [2, 580]])
+    cm_data = np.array([[547, 7], [2, 580]])
+    labels = ['Diseased', 'Normal']
     
-    fig, ax = plt.subplots(figsize=(6, 4))
-    sns.heatmap(cm_colab, annot=True, fmt='d', cmap='Blues',
-                xticklabels=['Diseased', 'Normal'],
-                yticklabels=['Diseased', 'Normal'], ax=ax)
-    plt.xlabel('Predicted Label')
-    plt.ylabel('True Medical Label')
-    plt.title('Google Colab Final Confusion Matrix')
-    st.pyplot(fig)
+    fig = px.imshow(
+        cm_data,
+        x=labels,
+        y=labels,
+        text_auto=True,
+        color_continuous_scale='Blues',
+        labels=dict(x="Predicted Label", y="True Medical Label", color="Sample Count"),
+        title="Google Colab Final Validation Confusion Matrix"
+    )
+    fig.update_layout(width=600, height=450)
+    st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# PAGE 3: PATIENT RECORDS LOG
+# PAGE 3: PATIENT RECORDS LOG & DOCUMENTS
 elif page == "📋 Patient Assessment Logs":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Historic Upload Logs")
     if len(st.session_state.history) > 0:
         st.dataframe(st.session_state.history, use_container_width=True)
     else:
-        st.info("No saved records found.")
+        st.info("No saved scan records found.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- NEW: PATIENT MEDICAL DOCUMENTS SECTION ---
+    st.markdown('<div class="med-card">', unsafe_allow_html=True)
+    st.subheader("📁 Patient Medical Documents & External Records")
+    st.markdown("Upload supplemental medical records, lab reports (e.g., HbA1c tests), or previous OCT scans for clinical context.")
+    
+    doc_upload = st.file_uploader(
+        "Upload Medical Document (PDF, PNG, JPG, TXT)", 
+        type=["pdf", "png", "jpg", "jpeg", "txt"], 
+        key="patient_doc_uploader"
+    )
+    
+    doc_notes = st.text_input("Document Category / Clinical Note (e.g., 'HbA1c Lab Report - June 2026')")
+    
+    if st.button("Save Patient Document"):
+        if doc_upload is not None:
+            doc_entry = {
+                "Document Name": doc_upload.name,
+                "Category / Note": doc_notes if doc_notes else "General Medical Record",
+                "Size (KB)": f"{round(doc_upload.size / 1024, 1)} KB",
+                "Date Uploaded": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            st.session_state.patient_docs.append(doc_entry)
+            st.success(f"Successfully attached document: {doc_upload.name}")
+        else:
+            st.warning("Please select a file to upload first.")
+
+    if len(st.session_state.patient_docs) > 0:
+        st.markdown("### Attached Patient Records")
+        st.dataframe(pd.DataFrame(st.session_state.patient_docs), use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
