@@ -156,7 +156,7 @@ with tab3:
     Diabetic Retinopathy is a leading cause of blindness worldwide. This project delivers an accessible, 
     automated web gateway leveraging computer vision to expedite clinical screening and prevent vision loss.
     
-    * **Developer:** [Your name]
+    * **Developer Team:** [ML--Fifth Floor--Group 3]
     * **Project:** AI-Powered Diabetic Retinopathy Screening
     * **Academic Year:** 2026
     * **Source of Information:** [Kaggle](https://www.kaggle.com/)
