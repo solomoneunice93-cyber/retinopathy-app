@@ -72,7 +72,7 @@ st.markdown(f"""
         <div class="team-meta">
             <strong>Developed by:</strong> {TEAM_NAME} &nbsp;|&nbsp; 
             <strong>Submission Date:</strong> {SUBMISSION_DATE} &nbsp;|&nbsp; 
-            <strong>Version:</strong> {PROJECT_VERSION}
+            <strong>Version:</strong> {PROJECT_MODEL}
         </div>
     </div>
 """, unsafe_allow_html=True)
