@@ -5,28 +5,69 @@ from torchvision import models, transforms
 from PIL import Image
 import streamlit as st
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import gdown
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-# --- PAGE CONFIGURATION & STYLING ---
+# --- PAGE CONFIGURATION & MEDICAL STYLING ---
 st.set_page_config(
-    page_title="AI Retinopathy Platform", 
-    page_icon="👁️", 
-    layout="centered"
+    page_title="Diabetic Retinopathy Clinical Portal", 
+    page_icon="🩺", 
+    layout="wide"
 )
 
-# Custom Styling to mimic the "Soft" premium web theme
+# Custom Clinical CSS Theme
 st.markdown("""
     <style>
-    .main-title { font-size: 2.2rem; font-weight: bold; color: #1E3A8A; margin-bottom: 0.1rem; }
-    .subtitle { font-size: 1.1rem; color: #4B5563; margin-bottom: 1.5rem; }
-    .section-header { font-size: 1.4rem; font-weight: 600; color: #1F2937; margin-top: 1rem; }
+    /* Global Page Styling */
+    .stApp {
+        background-color: #F8FAFC;
+    }
+    
+    /* Header Container */
+    .header-box {
+        background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+        padding: 24px;
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .main-title { font-size: 2.2rem; font-weight: 700; color: #FFFFFF; margin-bottom: 0.2rem; }
+    .subtitle { font-size: 1rem; color: #93C5FD; }
+    
+    /* Medical Card Enclosures */
+    .med-card {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-top: 4px solid #2563EB;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+    }
+    
+    /* Custom Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #F1F5F9;
+        border-right: 1px solid #E2E8F0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Header Banner Section (From Cell 4 layout)
-st.markdown('<div class="main-title">👁️ AI-Powered Diabetic Retinopathy Screening Platform</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Advanced Deep Learning Clinical Decision Support System | Graduation Capstone Project</div>', unsafe_allow_html=True)
-st.markdown("---")
+# Header Banner
+st.markdown("""
+    <div class="header-box">
+        <div class="main-title">🩺 Clinical Decision Support Portal</div>
+        <div class="subtitle">Automated Diagnostic Assessment & Microvascular Evaluation | Opthalmology AI Support</div>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- INITIALIZE SESSION STATE FOR INPUT TRACKING ---
+if 'history' not in st.session_state:
+    st.session_state.history = pd.DataFrame(columns=['Filename', 'Predicted', 'Ground Truth', 'Confidence'])
 
 # --- AUTOMATIC MODEL DOWNLOAD ---
 MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0' 
@@ -53,9 +94,9 @@ def load_medical_model():
 try:
     model = load_medical_model()
 except Exception as e:
-    st.error("Could not load the AI model weights. Please check your Google Drive File ID.")
+    st.error("⚠️ Model Loading Error: Unable to fetch model weights from Google Drive.")
 
-# --- MEDICAL LOGIC & TRANSFORMS ---
+# --- MEDICAL TRANSFORMS & CLINICAL GUIDELINES ---
 predict_transform = transforms.Compose([
     transforms.Resize((128, 128)),
     transforms.ToTensor(),
@@ -68,42 +109,51 @@ def get_medical_guidelines(diagnosis_class):
             "⚠️ CLINICAL STATUS: ACTION REQUIRED\n\n"
             "💊 Standard Management Options:\n"
             "• Systemic Control: Blood glucose regulation (e.g., Metformin, Insulin therapy), "
-            "blood pressure control via ACE inhibitors (e.g., Lisinopril), and lipid-lowering agents "
-            "(e.g., Atorvastatin) to reduce macular exudation.\n"
+            "blood pressure control via ACE inhibitors, and lipid-lowering agents.\n"
             "• Ocular Therapy: Evaluation for intravitreal Anti-VEGF injections (e.g., Ranibizumab, Aflibercept) "
-            "or corticosteroid implants to address active vascular leakage.\n"
-            "• Surgical Options: Advanced proliferative stages may require panretinal laser photocoagulation or a vitrectomy.\n\n"
-            "🚨 Disclaimer: This output is generated for educational and screening purposes based on automated image analysis. "
-            "It does not constitute definitive clinical advice. Make sure to double-check the physical labels of any prescribed products, "
-            "and consult a licensed ophthalmologist for a comprehensive clinical exam and personalized treatment plan."
+            "or corticosteroid implants.\n"
+            "• Surgical Options: Advanced proliferative stages may require laser photocoagulation or vitrectomy.\n\n"
+            "🚨 Disclaimer: Generated for screening support. Consult a licensed ophthalmologist for treatment planning."
         )
     else:
         return (
             "✅ CLINICAL STATUS: ROUTINE FOLLOW-UP\n\n"
             "🩺 Preventative Care Guidelines:\n"
-            "• Screening: Schedule annual comprehensive dilated eye examinations to monitor ongoing retinal health.\n"
-            "• Maintenance: Continue monitoring and steady maintenance of optimal HbA1c, blood pressure, and cholesterol levels.\n"
-            "• Lifestyle Support: Maintain a balanced nutritional plan and regular cardiovascular exercise to support microvascular health.\n\n"
-            "⚠️ Disclaimer: General screening evaluation only. Regular physical eye exams remain necessary to detect early microvascular changes."
+            "• Screening: Schedule annual comprehensive dilated eye examinations.\n"
+            "• Maintenance: Continue monitoring HbA1c, blood pressure, and lipid levels.\n"
+            "• Lifestyle Support: Maintain a balanced nutritional plan and regular cardiovascular exercise.\n\n"
+            "⚠️ Disclaimer: General evaluation only. Regular physical eye exams remain necessary."
         )
 
-# --- PREMIUM TABS NAVIGATION SYSTEM (From Cell 4) ---
-tab1, tab2, tab3 = st.tabs(["🩻 Patient Screening App", "📊 Model Architecture & Performance", "ℹ️ About the Project"])
+# --- SIDEBAR CLINICAL NAVIGATION ---
+st.sidebar.image("https://img.icons8.com/color/96/ophthalmology.png", width=70)
+st.sidebar.title("Clinical Navigation")
+page = st.sidebar.radio("Select View:", [
+    "🩻 Diagnostic Image Screening", 
+    "📊 Input Metrics & Confusion Matrix", 
+    "📋 Patient Assessment Logs"
+])
 
-# TAB 1: SCREENING APP WITH GUIDELINES
-with tab1:
-    st.markdown('<div class="section-header">Upload a Retinal Fundus Photograph for Diagnostic Analysis</div>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Choose a retinal image...", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+# PAGE 1: DIAGNOSTIC SCREENING
+if page == "🩻 Diagnostic Image Screening":
+    st.markdown('<div class="med-card">', unsafe_allow_html=True)
+    st.subheader("1. Fundus Image Upload")
+    uploaded_file = st.file_uploader("Upload Retinal Scan (JPG, PNG)", type=["jpg", "jpeg", "png"])
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert('RGB')
         
-        # Dual column split for input and output layout attributes
-        col1, col2 = st.columns(2)
-        with col1:
-            st.image(image, caption='Uploaded Retinal Photograph', use_container_width=True)
+        # Dual Column View
+        col1, col2 = st.columns([1, 1.2])
         
-        # Compute AI predictions
+        with col1:
+            st.markdown('<div class="med-card">', unsafe_allow_html=True)
+            st.subheader("Retinal Imaging View")
+            st.image(image, use_container_width=True, caption=uploaded_file.name)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Prediction
         img_t = predict_transform(image).unsqueeze(0)
         with torch.no_grad():
             outputs = model(img_t)
@@ -112,53 +162,94 @@ with tab1:
             
         classes = ['Diseased (Diabetic Retinopathy)', 'Normal (Healthy)']
         diagnosis = classes[predicted.item()]
-        guidelines = get_medical_guidelines(diagnosis)
+        confidence = float(probs[predicted.item()]) * 100
         
         with col2:
-            st.markdown("**Diagnostic Output Probabilities:**")
-            # Display confidence metric sliders
+            st.markdown('<div class="med-card">', unsafe_allow_html=True)
+            st.subheader("Automated Analysis Output")
+            
             st.progress(float(probs[0]), text=f"Diabetic Retinopathy: {probs[0]*100:.1f}%")
             st.progress(float(probs[1]), text=f"Healthy Retina: {probs[1]*100:.1f}%")
             
             if "Diseased" in diagnosis:
-                st.error(f"Conclusion: {diagnosis}")
+                st.error(f"**Diagnostic Finding:** {diagnosis}")
             else:
-                st.success(f"Conclusion: {diagnosis}")
+                st.success(f"**Diagnostic Finding:** {diagnosis}")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Ground Truth Feedback Widget
+        st.markdown('<div class="med-card">', unsafe_allow_html=True)
+        st.subheader("2. Ground Truth Validation (For Dynamic Metrics)")
+        actual_label = st.radio(
+            "Select confirmed clinical diagnosis to update systemic evaluation metrics:",
+            classes,
+            horizontal=True
+        )
         
-        # Display the custom clinical text guidelines right on the website interface
-        st.markdown("---")
-        st.markdown("**Recommended Management Guidelines**")
-        st.text_area(label="Clinical Output", value=guidelines, height=260, label_visibility="collapsed")
+        if st.button("Log Finding to Clinical Record"):
+            new_entry = pd.DataFrame([{
+                'Filename': uploaded_file.name,
+                'Predicted': diagnosis,
+                'Ground Truth': actual_label,
+                'Confidence': f"{confidence:.1f}%"
+            }])
+            st.session_state.history = pd.concat([st.session_state.history, new_entry], ignore_index=True)
+            st.success("Record successfully added to metric database.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# TAB 2: PERFORMANCE METRICS DATA MATRIX
-with tab2:
-    st.markdown('<div class="section-header">How the Neural Network Works</div>', unsafe_allow_html=True)
-    st.markdown("""
-    * **Architecture:** ResNet18 Deep Convolutional Neural Network (CNN) fine-tuned on thousands of retinal fundus images.
-    * **Data Processing:** Cleaned, resized, and normalized to eliminate baseline artifacts while utilizing class-balanced optimization loss weights.
-    """)
-    
-    st.markdown('<div class="section-header">Evaluation Metrics</div>', unsafe_allow_html=True)
-    st.markdown("Below is a breakdown of how perfectly the system performs on unseen test data.")
-    
-    # Premium interactive dataframe block translated from Gradio
-    metrics_data = {
-        "Metric": ["Accuracy", "Sensitivity (Recall)", "Specificity", "F1-Score"],
-        "Validation Score": ["98.4%", "97.9%", "98.8%", "98.1%"]
-    }
-    df = pd.DataFrame(metrics_data)
-    st.dataframe(df, hide_index=True, use_container_width=True)
+        # Management Guidelines
+        st.markdown('<div class="med-card">', unsafe_allow_html=True)
+        st.subheader("3. Clinical Guidelines")
+        st.text_area("Protocol Recommendations", value=get_medical_guidelines(diagnosis), height=200)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# TAB 3: ACADEMIC ATTRIBUTES
-with tab3:
-    st.markdown('<div class="section-header">Project Overview</div>', unsafe_allow_html=True)
-    st.markdown("""
-    Diabetic Retinopathy is a leading cause of blindness worldwide. This project delivers an accessible, 
-    automated web gateway leveraging computer vision to expedite clinical screening and prevent vision loss.
+# PAGE 2: METRICS & CONFUSION MATRIX
+elif page == "📊 Input Metrics & Confusion Matrix":
+    st.markdown('<div class="med-card">', unsafe_allow_html=True)
+    st.subheader("Performance Metrics Across Uploaded Inputs")
     
-    * **Developer Team:** [ML--Fifth Floor--Group 3]
-    * **Project:** AI-Powered Diabetic Retinopathy Screening
-    * **Academic Year:** 2026
-    * **Source of Information:** [Kaggle](https://www.kaggle.com/)
-    """)
+    if len(st.session_state.history) == 0:
+        st.warning("No input data logged yet. Upload scans in the screening tab and submit ground truth records to view live metrics.")
+    else:
+        y_true = st.session_state.history['Ground Truth']
+        y_pred = st.session_state.history['Predicted']
+        
+        # Calculate Input Metrics
+        acc = accuracy_score(y_true, y_pred)
+        prec = precision_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
+        rec = recall_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
+        f1 = f1_score(y_true, y_pred, pos_label='Diseased (Diabetic Retinopathy)', zero_division=0)
+        
+        # Metric Columns
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Accuracy", f"{acc*100:.1f}%")
+        m2.metric("Precision", f"{prec*100:.1f}%")
+        m3.metric("Recall", f"{rec*100:.1f}%")
+        m4.metric("F1-Score", f"{f1*100:.1f}%")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Confusion Matrix
+        st.markdown('<div class="med-card">', unsafe_allow_html=True)
+        st.subheader("Confusion Matrix of Analyzed Scans")
+        
+        labels = ['Diseased (Diabetic Retinopathy)', 'Normal (Healthy)']
+        cm = confusion_matrix(y_true, y_pred, labels=labels)
+        
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Diseased', 'Normal'], yticklabels=['Diseased', 'Normal'], ax=ax)
+        plt.xlabel('Predicted Label')
+        plt.ylabel('Confirmed Ground Truth')
+        plt.title('Live Confusion Matrix')
+        
+        st.pyplot(fig)
+        st.markdown('</div>', unsafe_allow_html=True)
 
+# PAGE 3: PATIENT RECORDS LOG
+elif page == "📋 Patient Assessment Logs":
+    st.markdown('<div class="med-card">', unsafe_allow_html=True)
+    st.subheader("Historic Upload Logs")
+    if len(st.session_state.history) > 0:
+        st.dataframe(st.session_state.history, use_container_width=True)
+    else:
+        st.info("No saved records found.")
+    st.markdown('</div>', unsafe_allow_html=True)
