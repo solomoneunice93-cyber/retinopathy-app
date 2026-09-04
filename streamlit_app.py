@@ -252,7 +252,7 @@ elif page == "📋 Patient Assessment Logs":
         st.dataframe(st.session_state.history, use_container_width=True)
     else:
         st.info("No saved records found.")
-        st.markdown('</div>', unsafe_allow_html=True) 0:
+        st.markdown('</div>', unsafe_allow_html=True):
         st.dataframe(st.session_state.history, use_container_width=True)
     else:
         st.info("No saved records found.")
