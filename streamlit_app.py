@@ -176,6 +176,26 @@ if page == "🩻 Diagnostic Image Screening":
             else:
                 st.success(f"Diagnostic Finding: {diagnosis}")
             st.markdown('</div>', unsafe_allow_html=True)
+        # Ground Truth Feedback Widget
+        st.markdown('<div class="med-card">', unsafe_allow_html=True)
+        st.subheader("2. Ground Truth Validation (For Dynamic Metrics)")
+        actual_label = st.radio(
+            "Select confirmed clinical diagnosis to update systemic evaluation metrics:",
+            classes,
+            horizontal=True
+        )
+        
+        if st.button("Log Finding to Clinical Record"):
+            new_entry = pd.DataFrame([{
+                'Filename': uploaded_file.name,
+                'Predicted': diagnosis,
+                'Ground Truth': actual_label,
+                'Confidence': f"{confidence:.1f}%"
+            }])
+            st.session_state.history = pd.concat([st.session_state.history, new_entry], ignore_index=True)
+            st.success("Record successfully added to metric database.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         # Management Guidelines
         st.markdown('<div class="med-card">', unsafe_allow_html=True)
         st.subheader("3. Clinical Guidelines")
