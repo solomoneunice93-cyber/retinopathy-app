@@ -13,7 +13,7 @@ st.write("Upload a retinal photograph to see the predictive diagnosis alongside 
 
 # --- AUTOMATIC MODEL DOWNLOAD ---
 # Replace 'YOUR_GOOGLE_DRIVE_FILE_ID_HERE' with your actual Google Drive ID
-MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0/view?usp=sharing'
+MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0'
 MODEL_PATH = "diabetic_retinopathy_resnet18.pth"
 
 @st.cache_resource
