@@ -13,9 +13,9 @@ from datetime import datetime
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
 # --- EDIT YOUR TEAM DETAILS HERE ---
-TEAM_NAME = "Your Team Name"
-SUBMISSION_DATE = "March 04, 2026"
-PROJECT_VERSION = "v1.0"
+TEAM_NAME = "ML--5th Floor--Group 3"
+SUBMISSION_DATE = "Sept 5, 2026"
+PROJECT_MODEL = "CNN and Deep Learning"
 
 # --- PAGE CONFIGURATION & MEDICAL STYLING ---
 st.set_page_config(
