@@ -459,6 +459,49 @@ elif page == "📊 Input Metrics & Confusion Matrix":
     m4.metric("F1-Score", "99.21%")
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # --- NEW: TRAIN & VAL EVALUATION CURVES GRAPH ---
+    st.markdown('<div class="med-card">', unsafe_allow_html=True)
+    st.subheader("📈 Training & Validation Performance Curves Across Epochs")
+    
+    # Load epoch history data
+    colab_metrics = pd.DataFrame({
+        'Epoch': [1, 2, 3, 4, 5],
+        'Train Loss': [0.2381, 0.1070, 0.0681, 0.0419, 0.0229],
+        'Train Accuracy (%)': [91.63, 96.70, 97.78, 98.72, 99.43],
+        'Val Loss': [0.1268, 0.0841, 0.0629, 0.0434, 0.0325],
+        'Val Accuracy (%)': [96.21, 97.45, 97.71, 98.50, 99.21]
+    })
+
+    c_graph1, c_graph2 = st.columns(2)
+    
+    with c_graph1:
+        fig_loss = px.line(
+            colab_metrics, 
+            x='Epoch', 
+            y=['Train Loss', 'Val Loss'],
+            markers=True,
+            labels={'value': 'Loss Score', 'variable': 'Dataset'},
+            title='<b>Loss Progression (Train vs. Test/Val)</b>',
+            color_discrete_sequence=['#DC2626', '#2563EB']
+        )
+        fig_loss.update_layout(xaxis=dict(dtick=1), hovermode="x unified")
+        st.plotly_chart(fig_loss, use_container_width=True)
+        
+    with c_graph2:
+        fig_acc = px.line(
+            colab_metrics, 
+            x='Epoch', 
+            y=['Train Accuracy (%)', 'Val Accuracy (%)'],
+            markers=True,
+            labels={'value': 'Accuracy (%)', 'variable': 'Dataset'},
+            title='<b>Accuracy Progression (Train vs. Test/Val)</b>',
+            color_discrete_sequence=['#059669', '#3B82F6']
+        )
+        fig_acc.update_layout(xaxis=dict(dtick=1), hovermode="x unified")
+        st.plotly_chart(fig_acc, use_container_width=True)
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Interactive Confusion Matrix (Class-Balanced Model)")
     
