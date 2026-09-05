@@ -474,7 +474,33 @@ elif page == "📊 Input Metrics & Confusion Matrix":
 
     c_graph1, c_graph2 = st.columns(2)
 
-
+with c_graph1:
+        fig_loss = px.line(
+            colab_metrics, 
+            x='Epoch', 
+            y=['Train Loss', 'Val Loss'],
+            markers=True,
+            labels={'value': 'Loss Score', 'variable': 'Dataset'},
+            title='<b>Loss Progression (Train vs. Test/Val)</b>',
+            color_discrete_sequence=['#DC2626', '#2563EB']
+        )
+        fig_loss.update_layout(xaxis=dict(dtick=1), hovermode="x unified")
+        st.plotly_chart(fig_loss, use_container_width=True)
+        
+    with c_graph2:
+        fig_acc = px.line(
+            colab_metrics, 
+            x='Epoch', 
+            y=['Train Accuracy (%)', 'Val Accuracy (%)'],
+            markers=True,
+            labels={'value': 'Accuracy (%)', 'variable': 'Dataset'},
+            title='<b>Accuracy Progression (Train vs. Test/Val)</b>',
+            color_discrete_sequence=['#059669', '#3B82F6']
+        )
+        fig_acc.update_layout(xaxis=dict(dtick=1), hovermode="x unified")
+        st.plotly_chart(fig_acc, use_container_width=True)
+        
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Interactive Confusion Matrix (Class-Balanced Model)")
     
