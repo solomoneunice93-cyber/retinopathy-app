@@ -474,7 +474,7 @@ elif page == "📊 Input Metrics & Confusion Matrix":
 
     c_graph1, c_graph2 = st.columns(2)
 
-with c_graph1:
+    with c_graph1:
         fig_loss = px.line(
             colab_metrics, 
             x='Epoch', 
@@ -487,7 +487,7 @@ with c_graph1:
         fig_loss.update_layout(xaxis=dict(dtick=1), hovermode="x unified")
         st.plotly_chart(fig_loss, use_container_width=True)
         
- with c_graph2:
+     with c_graph2:
         fig_acc = px.line(
             colab_metrics, 
             x='Epoch', 
