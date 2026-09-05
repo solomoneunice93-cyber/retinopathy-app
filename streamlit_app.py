@@ -441,7 +441,7 @@ elif page == "🩻 Diagnostic Image Screening":
                 mime="application/pdf",
                 use_container_width=True
             )
-
+            
         st.markdown('<div class="med-card">', unsafe_allow_html=True)
         st.subheader("2. Clinical Staging Guidelines")
         st.text_area("Protocol Recommendations", value=clinical_guidelines, height=220)
