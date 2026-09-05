@@ -1,21 +1,22 @@
 import os
-import io
+import io #Python’s built-in Input/Output module. It creates in-memory byte buffers so the app can generate the PDF report file on the fly without having to save temporary files to your server's disk
 import torch
 import torch.nn as nn
-from torchvision import models, transforms
-from PIL import Image
+from torchvision import models, transforms #Imports PyTorch’s computer vision toolkit.
+#models loads the pre-trained ResNet-18 neural network architecture, and transforms handles image preprocessing
+from PIL import Image#Python Imaging Library
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import gdown
-import cv2
+import plotly.express as px #graphing library for confusion matrix
+import gdown #fetches your trained model weights file
+import cv2 #Open Source Computer Vision Library
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-# --- EDIT YOUR TEAM DETAILS HERE ---
+# --- EDIT TEAM DETAILS HERE ---
 TEAM_NAME = "ML--5th Floor--Group 3"
 SUBMISSION_DATE = "Sept 5, 2026"
 PROJECT_MODEL = "CNN and Deep Learning"
@@ -27,17 +28,17 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom Clinical CSS Theme
+# Custom Clinical CSS Theme --- Cascadinf Style Sheets, controls layouts -- color. font, spacing, margin...
 st.markdown("""
 <style>
 .stApp {
     background-color: #F8FAFC;
 }
 
-.header-box {
+.header-box { #Tile banner
     background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
-    padding: 24px;
-    border-radius: 12px;
+    padding: 24px; #Adds 24 pixels of internal spacing between the outer border of the banner and the text inside it
+    border-radius: 12px; #Rounds the four corners of the header box with a 12-pixel curve to give it a modern, soft card feel.
     color: white;
     margin-bottom: 25px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -144,14 +145,14 @@ if 'patient_docs' not in st.session_state:
 MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0'
 MODEL_PATH = "diabetic_retinopathy_resnet18.pth"
 
-@st.cache_resource
+@st.cache_resource #A Streamlit decorator that caches your AI model in memory. It ensures Streamlit loads the model once when the app starts instead of reloading it every single time a user clicks a button or interacts with the interface
 def load_medical_model():
     if not os.path.exists(MODEL_PATH):
         url = f'https://drive.google.com/uc?id={MODEL_FILE_ID}'
         gdown.download(url, MODEL_PATH, quiet=False)
     
-    model = models.resnet18()
-    num_ftrs = model.fc.in_features
+    model = models.resnet18() #
+    num_ftrs = model.fc.in_features #grbs the input features entering the fc(512)
     model.fc = nn.Sequential(
         nn.Linear(num_ftrs, 256),
         nn.ReLU(),
@@ -178,17 +179,17 @@ def generate_gradcam(input_tensor, model, original_image):
     def forward_hook(module, input, output):
         activations.append(output)
 
-    target_layer = model.layer4[1].conv2
-    h1 = target_layer.register_forward_hook(forward_hook)
-    h2 = target_layer.register_full_backward_hook(backward_hook)
+    target_layer = model.layer4[1].conv2# Targets the fc
+    h1 = target_layer.register_forward_hook(forward_hook)#Makes the fc have forward propagation
+    h2 = target_layer.register_full_backward_hook(backward_hook) #Makes the fc have backward propagation
 
-    output = model(input_tensor)
+    output = model(input_tensor) #Passes forward propagation again and gets the output
     _, target_class = output.max(1)
     
-    model.zero_grad()
-    output[0, target_class].backward()
+    model.zero_grad() #Clears out any existing gradients lingering from previous computations
+    output[0, target_class].backward() #Runs backpropagation specifically for the winning target class
 
-    h1.remove()
+    h1.remove() #prevents memory leaks and ensures hooks don't run unnecessarily during standard predictions.
     h2.remove()
 
     pooled_gradients = torch.mean(gradients[0], dim=[0, 2, 3])
@@ -198,7 +199,7 @@ def generate_gradcam(input_tensor, model, original_image):
 
     heatmap = torch.mean(activation, dim=0).squeeze().detach().cpu().numpy()
     heatmap = np.maximum(heatmap, 0)
-    if np.max(heatmap) > 0:
+    if np.max(heatmap) > 0: #Math for color rendering
         heatmap /= np.max(heatmap)
 
     orig_np = np.array(original_image.resize((128, 128)))
@@ -211,9 +212,9 @@ def generate_gradcam(input_tensor, model, original_image):
 
 # --- PDF REPORT GENERATOR ---
 def create_pdf_report(filename, stage_name, diseased_prob, guidelines):
-    buffer = io.BytesIO()
+    buffer = io.BytesIO() #generate and save the PDF file directly into RAM instead of writing it to the server's local disk drive
     doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
+    styles = getSampleStyleSheet() #Fetches ReportLab's built-in default style sheet dictionary
     
     title_style = ParagraphStyle(
         'TitleStyle',
@@ -321,7 +322,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Team:** {TEAM_NAME}")
 st.sidebar.markdown(f"**Date:** {SUBMISSION_DATE}")
 
-# PAGE 0: OVERVIEW & COLAB MODEL ARCHITECTURE
+# PAGE 0: OVERVIEW & PYTHON MODEL ARCHITECTURE
 if page == "📖 Overview & Model Architecture":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("💡 Why We Built This Diabetic Retinopathy (DR) AI Screening Project")
@@ -333,7 +334,7 @@ if page == "📖 Overview & Model Architecture":
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("🧠 Google Colab CNN Model Architecture & Fine-Tuning Setup")
+    st.subheader("🧠 Google Colab Python CNN Model Architecture & Fine-Tuning Setup")
     col_a, col_b = st.columns(2)
     with col_a:
         st.markdown("**1. Backbone Architecture: ResNet-18**")
@@ -377,16 +378,16 @@ if page == "📖 Overview & Model Architecture":
 # PAGE 1: DIAGNOSTIC SCREENING
 elif page == "🩻 Diagnostic Image Screening":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("1. Fundus Image Upload")
+    st.subheader("1. Retinal Fundus Image Upload")
     uploaded_file = st.file_uploader("Upload Retinal Scan (JPG, PNG)", type=["jpg", "jpeg", "png"])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    if uploaded_file is not None:
+    if uploaded_file is not None: #Checks if the user has uploaded an image file
         image = Image.open(uploaded_file).convert('RGB')
         
-        img_t = predict_transform(image).unsqueeze(0)
+        img_t = predict_transform(image).unsqueeze(0) #Applies image preprocessing transformations (resizing, normalization)
         with torch.no_grad():
-            outputs = model(img_t)
+            outputs = model(img_t) #Disables gradient calculation during this forward pass to save GPU/CPU memory and speed up computation
             probs = torch.softmax(outputs, dim=1)[0]
             
         diseased_prob = float(probs[0])
@@ -423,8 +424,8 @@ elif page == "🩻 Diagnostic Image Screening":
         with col2:
             st.markdown('<div class="med-card">', unsafe_allow_html=True)
             st.subheader("Automated Analysis Output")
-            st.progress(diseased_prob, text=f"Diabetic Retinopathy Probability: {diseased_prob*100:.1f}%")
-            st.progress(normal_prob, text=f"Healthy Retina Probability: {normal_prob*100:.1f}%")
+            st.progress(diseased_prob, text=f"Diabetic Retinopathy Probability: {diseased_prob*100:.2f}%")
+            st.progress(normal_prob, text=f"Healthy Retina Probability: {normal_prob*100:.2f}%")
             
             # Uncertainty warning guardrail
             if 0.38 <= diseased_prob <= 0.42:
