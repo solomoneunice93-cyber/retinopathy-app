@@ -34,11 +34,10 @@ st.markdown("""
 .stApp {
     background-color: #F8FAFC;
 }
-
-.header-box { #Tile banner
+.header-box {
     background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
-    padding: 24px; #Adds 24 pixels of internal spacing between the outer border of the banner and the text inside it
-    border-radius: 12px; #Rounds the four corners of the header box with a 12-pixel curve to give it a modern, soft card feel.
+    padding: 24px;
+    border-radius: 12px;
     color: white;
     margin-bottom: 25px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -63,7 +62,6 @@ st.markdown("""
     border-top: 1px solid rgba(255,255,255,0.2);
     padding-top: 8px;
 }
-
 .med-card {
     background-color: #FFFFFF;
     border: 1px solid #E2E8F0;
