@@ -505,7 +505,7 @@ elif page == "📊 Input Metrics & Confusion Matrix":
                 'Val Accuracy (%)': '#3B82F6',
                 'Val Precision (%)': '#10B981',
                 'Val Recall (%)': '#F59E0B',
-                'Val F1-Score (%)': '#8B5CF6'
+                'Val F1-Score (%)': '#8B5CF6',
             dash_styles = ['solid', 'dash', 'dot', 'dashdot']
         marker_symbols = ['circle', 'square', 'diamond', 'x']
         
