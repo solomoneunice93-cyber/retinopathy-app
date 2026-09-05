@@ -351,7 +351,7 @@ if page == "📖 Overview & Model Architecture":
         * **Data Preprocessing & Augmentation:** Images resized to `128x128`, transformed to PyTorch Tensors, normalized, and augmented with `RandomHorizontalFlip()` and `RandomRotation(15°)`.
         * **Data Split:** 80% Training / 20% Validation (`random_split`).
         * **Loss Function:** `CrossEntropyLoss` weighted inversely proportional to class frequencies to combat dataset imbalance.
-        * **Optimizer:** Per-layer `Adam` optimizer (Layer 4 `lr = 0.00001`, Fully-Connected head `lr = 0.0001`).
+        * **Optimizer:** Per-layer `Adam` optimizer (Layer 4 `lr = 0.0001`, Fully-Connected head `lr = 0.001`).
         * **Batch Size & Epochs:** `Batch Size = 32`, `Epochs = 5`.
         """)
     st.markdown('</div>', unsafe_allow_html=True)
