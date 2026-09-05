@@ -506,6 +506,15 @@ elif page == "📊 Input Metrics & Confusion Matrix":
                 'Val Precision (%)': '#10B981',
                 'Val Recall (%)': '#F59E0B',
                 'Val F1-Score (%)': '#8B5CF6'
+            dash_styles = ['solid', 'dash', 'dot', 'dashdot']
+        marker_symbols = ['circle', 'square', 'diamond', 'x']
+        
+        for i, trace in enumerate(fig_metrics.data):
+            trace.line.dash = dash_styles[i % len(dash_styles)]
+            trace.line.width = 2.5
+            trace.marker.symbol = marker_symbols[i % len(marker_symbols)]
+            trace.marker.size = 8
+            
             }
         )
         fig_metrics.update_layout(xaxis=dict(dtick=1), hovermode="x unified")
