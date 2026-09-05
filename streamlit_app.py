@@ -28,7 +28,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom Clinical CSS Theme --- Cascadinf Style Sheets, controls layouts -- color. font, spacing, margin...
+# Custom Clinical CSS Theme --- Cascading Style Sheets, controls layouts -- color, font, spacing, margin...
 st.markdown("""
 <style>
 .stApp {
@@ -150,7 +150,7 @@ def load_medical_model():
         gdown.download(url, MODEL_PATH, quiet=False)
     
     model = models.resnet18() #
-    num_ftrs = model.fc.in_features #grbs the input features entering the fc(512)
+    num_ftrs = model.fc.in_features #grabs the input features entering the fc(512)
     model.fc = nn.Sequential(
         nn.Linear(num_ftrs, 256),
         nn.ReLU(),
@@ -351,7 +351,7 @@ if page == "📖 Overview & Model Architecture":
         * **Data Preprocessing & Augmentation:** Images resized to `128x128`, transformed to PyTorch Tensors, normalized, and augmented with `RandomHorizontalFlip()` and `RandomRotation(15°)`.
         * **Data Split:** 80% Training / 20% Validation (`random_split`).
         * **Loss Function:** `CrossEntropyLoss` weighted inversely proportional to class frequencies to combat dataset imbalance.
-        * **Optimizer:** Per-layer `Adam` optimizer (Layer 4 `lr = 0.0001`, Fully-Connected head `lr = 0.001`).
+        * **Optimizer:** Per-layer `Adam` optimizer (Layer 4 `lr = 0.00001`, Fully-Connected head `lr = 0.0001`).
         * **Batch Size & Epochs:** `Batch Size = 32`, `Epochs = 5`.
         """)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -441,13 +441,12 @@ elif page == "🩻 Diagnostic Image Screening":
                 mime="application/pdf",
                 use_container_width=True
             )
-            
+
         st.markdown('<div class="med-card">', unsafe_allow_html=True)
         st.subheader("2. Clinical Staging Guidelines")
         st.text_area("Protocol Recommendations", value=clinical_guidelines, height=220)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# PAGE 2: METRICS & CONFUSION MATRIX
 # PAGE 2: METRICS & CONFUSION MATRIX
 elif page == "📊 Input Metrics & Confusion Matrix":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
@@ -505,8 +504,12 @@ elif page == "📊 Input Metrics & Confusion Matrix":
                 'Val Accuracy (%)': '#3B82F6',
                 'Val Precision (%)': '#10B981',
                 'Val Recall (%)': '#F59E0B',
-                'Val F1-Score (%)': '#8B5CF6',
-            dash_styles = ['solid', 'dash', 'dot', 'dashdot']
+                'Val F1-Score (%)': '#8B5CF6'
+            }
+        )
+        
+        # Apply distinct dash styles and symbols so overlapping lines are visible
+        dash_styles = ['solid', 'dash', 'dot', 'dashdot']
         marker_symbols = ['circle', 'square', 'diamond', 'x']
         
         for i, trace in enumerate(fig_metrics.data):
@@ -514,9 +517,7 @@ elif page == "📊 Input Metrics & Confusion Matrix":
             trace.line.width = 2.5
             trace.marker.symbol = marker_symbols[i % len(marker_symbols)]
             trace.marker.size = 8
-            
-            }
-        )
+
         fig_metrics.update_layout(xaxis=dict(dtick=1), hovermode="x unified")
         st.plotly_chart(fig_metrics, use_container_width=True)
         
