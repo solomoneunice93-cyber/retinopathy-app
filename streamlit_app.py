@@ -29,34 +29,30 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom Clinical CSS Theme - Faint Red / Soft Pink
 st.markdown("""
 <style>
 .stApp {
     background-color: #FFF5F5;
 }
 .header-box {
-    background: linear-gradient(135deg, #7F1D1D 0%, #991B1B 100%);
+    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
     padding: 24px;
     border-radius: 12px;
-    color: white;
+    color: blue;
     margin-bottom: 25px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
-
 .main-title {
     font-size: 2.2rem;
     font-weight: 700;
     color: #FFFFFF;
     margin-bottom: 0.2rem;
 }
-
 .subtitle {
     font-size: 1rem;
     color: #FECDD3;
     margin-bottom: 0.8rem;
 }
-
 .team-meta {
     font-size: 0.85rem;
     color: #FFE4E6;
@@ -72,7 +68,6 @@ st.markdown("""
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
     margin-bottom: 20px;
 }
-
 .alert-normal {
     background-color: #D1FAE5;
     color: #065F46;
@@ -82,7 +77,6 @@ st.markdown("""
     font-weight: 600;
     margin-top: 10px;
 }
-
 .alert-stage1 {
     background-color: #FEF3C7;
     color: #92400E;
@@ -92,7 +86,6 @@ st.markdown("""
     font-weight: 600;
     margin-top: 10px;
 }
-
 .alert-stage2 {
     background-color: #FEE2E2;
     color: #991B1B;
@@ -102,7 +95,6 @@ st.markdown("""
     font-weight: 600;
     margin-top: 10px;
 }
-
 .alert-stage3 {
     background-color: #7F1D1D;
     color: #FFFFFF;
