@@ -16,7 +16,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # --- TEAM DETAILS ---
 TEAM_NAME = "ML--5th Floor--Group 3"
-SUBMISSION_DATE = "Sept 5, 2026"
+SUBMISSION_DATE = "Sept 8, 2026"
 PROJECT_MODEL = "Data-Leakage-Free CNN (ResNet-18)"
 
 # --- PAGE CONFIGURATION & MEDICAL STYLING ---
