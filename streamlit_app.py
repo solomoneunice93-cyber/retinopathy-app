@@ -122,7 +122,7 @@ st.markdown("""
 st.markdown(f"""
 <div class="header-box">
     <div class="main-title">🩺 Clinical Decision Support Portal</div>
-    <div class="subtitle">Data-Leakage-Free Automated Diagnostic Assessment & Microvascular Evaluation | Ophthalmology AI Support</div>
+    <div class="subtitle">Automated Diagnostic Assessment & Microvascular Evaluation | Ophthalmology AI Support</div>
     <div class="team-meta">
         <strong>Developed by:</strong> {TEAM_NAME} &nbsp;|&nbsp; 
         <strong>Submission Date:</strong> {SUBMISSION_DATE} &nbsp;|&nbsp; 
