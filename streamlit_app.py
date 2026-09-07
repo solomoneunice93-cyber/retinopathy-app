@@ -1,16 +1,15 @@
 import os
-import io #Python’s built-in Input/Output module. It creates in-memory byte buffers so the app can generate the PDF report file on the fly without having to save temporary files to your server's disk
+import io # Python’s built-in Input/Output module for in-memory byte buffers
 import torch
 import torch.nn as nn
-from torchvision import models, transforms #Imports PyTorch’s computer vision toolkit.
-#models loads the pre-trained ResNet-18 neural network architecture, and transforms handles image preprocessing
-from PIL import Image#Python Imaging Library
+from torchvision import models, transforms
+from PIL import Image
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px #graphing library for confusion matrix
-import gdown #fetches your trained model weights file
-import cv2 #Open Source Computer Vision Library
+import plotly.express as px
+import gdown
+import cv2
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -19,7 +18,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 # --- EDIT TEAM DETAILS HERE ---
 TEAM_NAME = "ML--5th Floor--Group 3"
 SUBMISSION_DATE = "Sept 8, 2026"
-PROJECT_MODEL = "CNN and Deep Learning"
+PROJECT_MODEL = "CNN and Deep Learning (ResNet-18 Leak-Free)"
 
 # --- PAGE CONFIGURATION & MEDICAL STYLING ---
 st.set_page_config(
@@ -28,7 +27,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom Clinical CSS Theme --- Cascadinf Style Sheets, controls layouts -- color. font, spacing, margin...
+# Custom Clinical CSS Theme
 st.markdown("""
 <style>
 .stApp {
@@ -140,17 +139,18 @@ if 'patient_docs' not in st.session_state:
     st.session_state.patient_docs = []
 
 # --- AUTOMATIC MODEL DOWNLOAD & GRAD-CAM CAPABLE RESNET ---
+# Replace MODEL_FILE_ID with your new Google Drive ID if hosting the updated weights file externally
 MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0'
-MODEL_PATH = "diabetic_retinopathy_resnet18.pth"
+MODEL_PATH = "diabetic_retinopathy_resnet18_no_leakage.pth"
 
-@st.cache_resource #A Streamlit decorator that caches your AI model in memory. It ensures Streamlit loads the model once when the app starts instead of reloading it every single time a user clicks a button or interacts with the interface
+@st.cache_resource
 def load_medical_model():
     if not os.path.exists(MODEL_PATH):
         url = f'https://drive.google.com/uc?id={MODEL_FILE_ID}'
         gdown.download(url, MODEL_PATH, quiet=False)
     
-    model = models.resnet18() #
-    num_ftrs = model.fc.in_features #grbs the input features entering the fc(512)
+    model = models.resnet18()
+    num_ftrs = model.fc.in_features
     model.fc = nn.Sequential(
         nn.Linear(num_ftrs, 256),
         nn.ReLU(),
@@ -164,7 +164,7 @@ def load_medical_model():
 try:
     model = load_medical_model()
 except Exception as e:
-    st.error("⚠️ Model Loading Error: Unable to fetch model weights from Google Drive.")
+    st.error("⚠️ Model Loading Error: Unable to fetch or load model weights. Ensure 'diabetic_retinopathy_resnet18_no_leakage.pth' is present in the working directory.")
 
 # --- GRAD-CAM GENERATOR FUNCTION ---
 def generate_gradcam(input_tensor, model, original_image):
@@ -177,17 +177,17 @@ def generate_gradcam(input_tensor, model, original_image):
     def forward_hook(module, input, output):
         activations.append(output)
 
-    target_layer = model.layer4[1].conv2# Targets the fc
-    h1 = target_layer.register_forward_hook(forward_hook)#Makes the fc have forward propagation
-    h2 = target_layer.register_full_backward_hook(backward_hook) #Makes the fc have backward propagation
+    target_layer = model.layer4[1].conv2
+    h1 = target_layer.register_forward_hook(forward_hook)
+    h2 = target_layer.register_full_backward_hook(backward_hook)
 
-    output = model(input_tensor) #Passes forward propagation again and gets the output
+    output = model(input_tensor)
     _, target_class = output.max(1)
     
-    model.zero_grad() #Clears out any existing gradients lingering from previous computations
-    output[0, target_class].backward() #Runs backpropagation specifically for the winning target class
+    model.zero_grad()
+    output[0, target_class].backward()
 
-    h1.remove() #prevents memory leaks and ensures hooks don't run unnecessarily during standard predictions.
+    h1.remove()
     h2.remove()
 
     pooled_gradients = torch.mean(gradients[0], dim=[0, 2, 3])
@@ -197,7 +197,7 @@ def generate_gradcam(input_tensor, model, original_image):
 
     heatmap = torch.mean(activation, dim=0).squeeze().detach().cpu().numpy()
     heatmap = np.maximum(heatmap, 0)
-    if np.max(heatmap) > 0: #Math for color rendering
+    if np.max(heatmap) > 0:
         heatmap /= np.max(heatmap)
 
     orig_np = np.array(original_image.resize((128, 128)))
@@ -210,9 +210,9 @@ def generate_gradcam(input_tensor, model, original_image):
 
 # --- PDF REPORT GENERATOR ---
 def create_pdf_report(filename, stage_name, diseased_prob, guidelines):
-    buffer = io.BytesIO() #generate and save the PDF file directly into RAM instead of writing it to the server's local disk drive
+    buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet() #Fetches ReportLab's built-in default style sheet dictionary
+    styles = getSampleStyleSheet()
     
     title_style = ParagraphStyle(
         'TitleStyle',
@@ -248,7 +248,7 @@ def create_pdf_report(filename, stage_name, diseased_prob, guidelines):
     buffer.seek(0)
     return buffer
 
-# --- MEDICAL TRANSFORMS & STAGED CLINICAL GUIDELINES ---
+# --- MEDICAL TRANSFORMS (MATCHES LEAK-FREE VAL/TEST PIPELINE) ---
 predict_transform = transforms.Compose([
     transforms.Resize((128, 128)),
     transforms.ToTensor(),
@@ -332,43 +332,41 @@ if page == "📖 Overview & Model Architecture":
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("🧠 Google Colab Python CNN Model Architecture & Fine-Tuning Setup")
+    st.subheader("🧠 Google Colab Python CNN Model Architecture & Leak-Free Setup")
     col_a, col_b = st.columns(2)
     with col_a:
         st.markdown("**1. Backbone Architecture: ResNet-18**")
         st.markdown("""
-        * **Base Network:** Pre-trained `ResNet-18` (Convolutional Neural Network) utilizing residual skip-connections to retain deep image feature maps.
-        * **Fine-Tuning Strategy:** Layers 1 through 3 were frozen (`requires_grad = False`) to preserve general image features. Layer 4 and the custom fully-connected header were unfrozen for targeted medical adaptation.
-        * **Custom Fully-Connected Head:**
-            * `Linear` layer: 512 input features → 256 nodes
-            * `ReLU` activation function for non-linearity
-            * `Dropout(0.4)`: 40% neuron dropout to prevent model overfitting
-            * `Linear` layer: 256 nodes → 2 output classes (Diseased vs. Normal)
+        * **Base Network:** Pre-trained `ResNet-18` (Convolutional Neural Network) utilizing residual skip-connections.
+        * **Fine-Tuning Strategy:** Layers 1 through 3 frozen (`requires_grad = False`). `layer4` and custom classifier unfrozen for targeted feature learning.
+        * **Custom Classifier Head:**
+            * `Linear` layer: `num_ftrs` → 256
+            * `ReLU` activation
+            * `Dropout(0.4)` to prevent overfitting
+            * `Linear` layer: 256 → 2 output classes
         """)
     with col_b:
-        st.markdown("**2. Training Pipeline & Class Imbalance Handling**")
+        st.markdown("**2. Rigorous Leak-Free Training Pipeline**")
         st.markdown("""
-        * **Data Preprocessing & Augmentation:** Images resized to `128x128`, transformed to PyTorch Tensors, normalized, and augmented with `RandomHorizontalFlip()` and `RandomRotation(15°)`.
-        * **Data Split:** 80% Training / 20% Validation (`random_split`).
-        * **Loss Function:** `CrossEntropyLoss` weighted inversely proportional to class frequencies to combat dataset imbalance.
-        * **Optimizer:** Per-layer `Adam` optimizer (Layer 4 `lr = 0.00001`, Fully-Connected head `lr = 0.0001`).
-        * **Batch Size & Epochs:** `Batch Size = 32`, `Epochs = 5`.
+        * **Data Split:** Independent Directory Splits (`train`, `valid`, `test`).
+        * **Data Transforms:** Training features `RandomHorizontalFlip` and `RandomRotation(15)`. Validation/Test transform uses deterministic `Resize((128, 128))` and Normalization.
+        * **Class Weights:** Computed strictly using **Training set targets only** (`total_train / (num_classes * class_counts)`).
+        * **Early Stopping:** Monitored using validation loss (`patience = 2`).
+        * **Unseen Evaluation:** Final performance metrics calculated exclusively on the unseen `test` split.
         """)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("📈 Google Colab Model Training & Validation Evaluation Metrics")
-    st.markdown("Below is the recorded training and validation performance across the 5 fine-tuning epochs:")
+    st.subheader("📈 Google Colab Unseen Test Evaluation Summary")
+    st.markdown("The final model evaluated on the strict, completely unseen Test Dataset yields the updated leak-free results:")
     
+    # Update these numbers directly if needed based on your latest Colab console output
     colab_metrics = pd.DataFrame({
-        'Epoch': [1, 2, 3, 4, 5],
-        'Train Loss': [0.2381, 0.1070, 0.0681, 0.0419, 0.0229],
-        'Train Accuracy (%)': [91.63, 96.70, 97.78, 98.72, 99.43],
-        'Val Loss': [0.1268, 0.0841, 0.0629, 0.0434, 0.0325],
-        'Val Accuracy (%)': [96.21, 97.45, 97.71, 98.50, 99.21],
-        'Val Precision (%)': [96.21, 97.45, 97.71, 98.51, 99.22],
-        'Val Recall (%)': [96.22, 97.44, 97.71, 98.50, 99.20],
-        'Val F1-Score (%)': [96.21, 97.45, 97.71, 98.50, 99.21]
+        'Evaluation Split': ['Unseen Test Set'],
+        'Test Accuracy (%)': ['[Insert Test Acc %]'],
+        'Test Precision (%)': ['[Insert Test Precision %]'],
+        'Test Recall (%)': ['[Insert Test Recall %]'],
+        'Test F1-Score (%)': ['[Insert Test F1 %]']
     })
     st.dataframe(colab_metrics, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -380,12 +378,12 @@ elif page == "🩻 Diagnostic Image Screening":
     uploaded_file = st.file_uploader("Upload Retinal Scan (JPG, PNG)", type=["jpg", "jpeg", "png"])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    if uploaded_file is not None: #Checks if the user has uploaded an image file
+    if uploaded_file is not None:
         image = Image.open(uploaded_file).convert('RGB')
         
-        img_t = predict_transform(image).unsqueeze(0) #Applies image preprocessing transformations (resizing, normalization)
+        img_t = predict_transform(image).unsqueeze(0)
         with torch.no_grad():
-            outputs = model(img_t) #Disables gradient calculation during this forward pass to save GPU/CPU memory and speed up computation
+            outputs = model(img_t)
             probs = torch.softmax(outputs, dim=1)[0]
             
         diseased_prob = float(probs[0])
@@ -450,19 +448,22 @@ elif page == "🩻 Diagnostic Image Screening":
 # PAGE 2: METRICS & CONFUSION MATRIX
 elif page == "📊 Input Metrics & Confusion Matrix":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("Final Model Validation Evaluation Metrics (Google Colab Final Epoch)")
+    st.subheader("Final Model Unseen Test Evaluation Metrics (Leak-Free)")
     
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Accuracy", "99.21%")
-    m2.metric("Precision", "99.22%")
-    m3.metric("Recall", "99.20%")
-    m4.metric("F1-Score", "99.21%")
+    # Replace strings below with your exact numbers printed by the Colab test execution step
+    m1.metric("Accuracy", "[Test Acc %]")
+    m2.metric("Precision", "[Test Precision %]")
+    m3.metric("Recall", "[Test Recall %]")
+    m4.metric("F1-Score", "[Test F1 %]")
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("Interactive Confusion Matrix (Class-Balanced Model)")
+    st.subheader("Interactive Confusion Matrix (Unseen Test Set)")
     
-    cm_data = np.array([[547, 7], [2, 580]])
+    # Replace cm_data values with your exact 2x2 confusion matrix array output from Colab
+    # Format: [[True_DR_Pred_DR, True_DR_Pred_Normal], [True_Normal_Pred_DR, True_Normal_Pred_Normal]]
+    cm_data = np.array([[0, 0], [0, 0]])
     labels = ['Diseased', 'Normal']
     
     fig = px.imshow(
@@ -472,7 +473,7 @@ elif page == "📊 Input Metrics & Confusion Matrix":
         text_auto=True,
         color_continuous_scale='Blues',
         labels=dict(x="Predicted Label", y="True Medical Label", color="Sample Count"),
-        title="Google Colab Final Validation Confusion Matrix"
+        title="Unseen Test Set Confusion Matrix"
     )
     fig.update_layout(width=600, height=450)
     st.plotly_chart(fig, use_container_width=True)
@@ -488,7 +489,6 @@ elif page == "📋 Patient Assessment Logs":
         st.info("No saved scan records found.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- NEW: PATIENT MEDICAL DOCUMENTS SECTION ---
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("📁 Patient Medical Documents & External Records")
     st.markdown("Upload supplemental medical records, lab reports (e.g., HbA1c tests), or previous OCT scans for clinical context.")
