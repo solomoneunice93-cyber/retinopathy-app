@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px 
+import plotly.graph_objects as go
 import gdown 
 import cv2 
 from datetime import datetime
@@ -140,7 +141,7 @@ st.markdown(f"""
 
 # --- INITIALIZE SESSION STATE FOR HISTORIC & EVALUATION DATA ---
 if 'evaluation_data' not in st.session_state:
-    # UPDATED: Matches your exact Colab Test Matrix: 110 TP, 3 FN, 2 FP, 116 TN
+    # Matches exact Colab Test Matrix: 110 TP, 3 FN, 2 FP, 116 TN
     y_true_base = [1]*113 + [0]*118
     y_pred_base = [1]*110 + [0]*3 + [1]*2 + [0]*116
     st.session_state.evaluation_data = {
@@ -373,15 +374,15 @@ if page == "📖 Overview & Model Architecture":
 
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("📈 Google Colab Model Training & Validation Evaluation Metrics")
-    st.markdown("Below is the updated recorded training and validation performance across the 11 fine-tuning epochs from Google Colab:")
+    st.markdown("Below is the recorded training and validation performance across the 11 fine-tuning epochs from Google Colab:")
     
-    # UPDATED: Real numbers directly from your Google Colab run screenshots
+    # Direct numbers from Colab logs
     colab_metrics = pd.DataFrame({
         'Epoch': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-        'Train Loss': [0.2450, 0.1820, 0.1510, 0.1320, 0.1180, 0.1090, 0.1010, 0.0950, 0.0925, 0.0883, 0.0803],
-        'Train Accuracy (%)': [91.20, 93.40, 94.80, 95.30, 95.80, 96.10, 96.40, 96.70, 96.92, 97.16, 97.21],
-        'Val Loss': [0.1850, 0.1620, 0.1450, 0.1310, 0.1240, 0.1180, 0.1140, 0.1103, 0.1102, 0.1133, 0.1206],
-        'Val Accuracy (%)': [93.10, 94.20, 95.00, 95.50, 95.80, 96.00, 96.10, 96.05, 96.05, 96.42, 96.42],
+        'Train Loss': [0.3620, 0.1890, 0.1795, 0.1380, 0.1380, 0.1205, 0.1030, 0.0868, 0.0930, 0.0883, 0.0803],
+        'Train Accuracy (%)': [85.20, 93.90, 94.40, 95.80, 95.30, 96.30, 96.90, 96.40, 96.92, 97.16, 97.21],
+        'Val Loss': [0.1960, 0.1710, 0.1345, 0.1390, 0.1130, 0.1115, 0.1170, 0.1110, 0.1102, 0.1133, 0.1206],
+        'Val Accuracy (%)': [93.75, 92.85, 94.85, 95.50, 96.00, 96.30, 96.10, 95.85, 96.05, 96.42, 96.42],
         'Val Precision (%)': [93.00, 94.10, 94.90, 95.40, 95.70, 95.90, 96.00, 96.52, 96.14, 96.57, 96.57],
         'Val Recall (%)': [93.20, 94.30, 95.10, 95.60, 95.90, 96.10, 96.20, 96.30, 95.92, 96.27, 96.27],
         'Val F1-Score (%)': [93.10, 94.20, 95.00, 95.50, 95.80, 96.00, 96.10, 96.39, 96.01, 96.39, 96.39]
@@ -491,6 +492,47 @@ elif page == "📊 Input Metrics & Confusion Matrix":
     m2.metric("Precision", f"{prec:.2f}%")
     m3.metric("Recall", f"{rec:.2f}%")
     m4.metric("F1-Score", f"{f1:.2f}%")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # TRAINING & VALIDATION PERFORMANCE GRAPHS
+    st.markdown('<div class="med-card">', unsafe_allow_html=True)
+    st.subheader("📉 Training & Validation Performance Curves")
+
+    epochs = list(range(1, 12))
+    train_loss = [0.3620, 0.1890, 0.1795, 0.1380, 0.1380, 0.1205, 0.1030, 0.0868, 0.0930, 0.0883, 0.0803]
+    val_loss = [0.1960, 0.1710, 0.1345, 0.1390, 0.1130, 0.1115, 0.1170, 0.1110, 0.1102, 0.1133, 0.1206]
+    train_acc = [85.20, 93.90, 94.40, 95.80, 95.30, 96.30, 96.90, 96.40, 96.92, 97.16, 97.21]
+    val_acc = [93.75, 92.85, 94.85, 95.50, 96.00, 96.30, 96.10, 95.85, 96.05, 96.42, 96.42]
+    val_prec = [93.00, 94.10, 94.90, 95.40, 95.70, 95.90, 96.00, 96.52, 96.14, 96.57, 96.57]
+    val_rec = [93.20, 94.30, 95.10, 95.60, 95.90, 96.10, 96.20, 96.30, 95.92, 96.27, 96.27]
+    val_f1 = [93.10, 94.20, 95.00, 95.50, 95.80, 96.00, 96.10, 96.39, 96.01, 96.39, 96.39]
+
+    col_g1, col_g2 = st.columns(2)
+
+    # 1. Loss Graph
+    with col_g1:
+        fig_loss = go.Figure()
+        fig_loss.add_trace(go.Scatter(x=epochs, y=train_loss, mode='lines+markers', name='Train Loss', line=dict(color='#1E3A8A')))
+        fig_loss.add_trace(go.Scatter(x=epochs, y=val_loss, mode='lines+markers', name='Validation Loss', line=dict(color='#F59E0B')))
+        fig_loss.update_layout(title="Training vs Validation Loss", xaxis_title="Epoch", yaxis_title="Loss", height=380, margin=dict(l=20, r=20, t=40, b=20))
+        st.plotly_chart(fig_loss, use_container_width=True)
+
+    # 2. Accuracy Graph
+    with col_g2:
+        fig_acc = go.Figure()
+        fig_acc.add_trace(go.Scatter(x=epochs, y=train_acc, mode='lines+markers', name='Train Accuracy', line=dict(color='#2563EB')))
+        fig_acc.add_trace(go.Scatter(x=epochs, y=val_acc, mode='lines+markers', name='Validation Accuracy', line=dict(color='#10B981')))
+        fig_acc.update_layout(title="Training vs Validation Accuracy (%)", xaxis_title="Epoch", yaxis_title="Accuracy (%)", height=380, margin=dict(l=20, r=20, t=40, b=20))
+        st.plotly_chart(fig_acc, use_container_width=True)
+
+    # 3. Precision, Recall, & F1-Score Graph
+    fig_metrics = go.Figure()
+    fig_metrics.add_trace(go.Scatter(x=epochs, y=val_prec, mode='lines+markers', name='Validation Precision', line=dict(color='#3B82F6')))
+    fig_metrics.add_trace(go.Scatter(x=epochs, y=val_rec, mode='lines+markers', name='Validation Recall', line=dict(color='#8B5CF6')))
+    fig_metrics.add_trace(go.Scatter(x=epochs, y=val_f1, mode='lines+markers', name='Validation F1-Score', line=dict(color='#EC4899')))
+    fig_metrics.update_layout(title="Validation Precision, Recall & F1-Score (%) Across Epochs", xaxis_title="Epoch", yaxis_title="Percentage (%)", height=400, margin=dict(l=20, r=20, t=40, b=20))
+    st.plotly_chart(fig_metrics, use_container_width=True)
+
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
