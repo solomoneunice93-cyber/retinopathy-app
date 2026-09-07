@@ -8,3 +8,4 @@ plotly
 gdown
 opencv-python-headless
 reportlab
+scikit-learn
