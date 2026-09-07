@@ -1,5 +1,5 @@
 import os
-import io # Python’s built-in Input/Output module. It creates in-memory byte buffers so the app can generate the PDF report file on the fly
+import io # Python’s built-in Input/Output module for generating in-memory byte buffers
 import torch
 import torch.nn as nn
 from torchvision import models, transforms # Imports PyTorch’s computer vision toolkit
@@ -8,7 +8,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px # Graphing library for metrics and confusion matrix
-import gdown # Fetches your trained model weights file
 import cv2 # Open Source Computer Vision Library
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
@@ -138,17 +137,14 @@ if 'history' not in st.session_state:
 if 'patient_docs' not in st.session_state:
     st.session_state.patient_docs = []
 
-# --- AUTOMATIC MODEL DOWNLOAD & GRAD-CAM CAPABLE RESNET ---
-MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20_idwwcEmh0'
+# --- LOCAL MODEL LOADING ---
 MODEL_PATH = "diabetic_retinopathy_resnet18_no_leakage.pth"
+FALLBACK_MODEL_PATH = "diabetic_retinopathy_resnet18.pth"
 
 @st.cache_resource
 def load_medical_model():
-    if not os.path.exists(MODEL_PATH):
-        url = f'https://drive.google.com/uc?id={MODEL_FILE_ID}'
-        gdown.download(url, MODEL_PATH, quiet=False)
-    
-    model = models.resnet18()
+    # Construct base ResNet-18 without fetching weights online
+    model = models.resnet18(weights=None)
     num_ftrs = model.fc.in_features
     model.fc = nn.Sequential(
         nn.Linear(num_ftrs, 256),
@@ -156,8 +152,15 @@ def load_medical_model():
         nn.Dropout(0.4),
         nn.Linear(256, 2)
     )
-    # Load model weights (handles fallback if no-leakage path isn't present locally)
-    target_path = MODEL_PATH if os.path.exists(MODEL_PATH) else "diabetic_retinopathy_resnet18.pth"
+    
+    # Check local path existence
+    if os.path.exists(MODEL_PATH):
+        target_path = MODEL_PATH
+    elif os.path.exists(FALLBACK_MODEL_PATH):
+        target_path = FALLBACK_MODEL_PATH
+    else:
+        raise FileNotFoundError(f"Neither '{MODEL_PATH}' nor '{FALLBACK_MODEL_PATH}' was found in the local working directory.")
+
     model.load_state_dict(torch.load(target_path, map_location=torch.device('cpu')))
     model.eval()
     return model
@@ -165,7 +168,7 @@ def load_medical_model():
 try:
     model = load_medical_model()
 except Exception as e:
-    st.error("⚠️ Model Loading Error: Unable to fetch model weights from Google Drive.")
+    st.error(f"⚠️ Model Loading Error: {e}")
 
 # --- GRAD-CAM GENERATOR FUNCTION ---
 def generate_gradcam(input_tensor, model, original_image):
@@ -308,7 +311,7 @@ def evaluate_severity(diseased_prob):
     return stage_name, alert_class, guidelines
 
 # --- SIDEBAR CLINICAL NAVIGATION ---
-st.sidebar.image("https://img.icons8.com/color/96/ophthalmology.png", width=70)
+st.sidebar.markdown("## 🩺 Ophthalmology Portal")
 st.sidebar.title("Clinical Navigation")
 page = st.sidebar.radio("Select View:", [
     "📖 Overview & Model Architecture",
@@ -437,7 +440,6 @@ elif page == "📊 Input Metrics & Confusion Matrix":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Final Unseen Test Set Evaluation Metrics (Data-Leakage-Free)")
     
-    # Fill these 4 values with the printed output from section 13 of your training run
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Test Accuracy", "98.50%")
     m2.metric("Test Precision", "98.51%")
@@ -449,7 +451,6 @@ elif page == "📊 Input Metrics & Confusion Matrix":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("📈 Training & Validation Performance Curves Across Epochs")
     
-    # Enter your recorded epoch values from Section 11 printouts below:
     colab_metrics = pd.DataFrame({
         'Epoch': [1, 2, 3, 4, 5],
         'Train Loss': [0.2381, 0.1070, 0.0681, 0.0419, 0.0229],
@@ -494,7 +495,6 @@ elif page == "📊 Input Metrics & Confusion Matrix":
             }
         )
         
-        # Apply distinct dash styles and symbols so overlapping lines are visible
         dash_styles = ['solid', 'dash', 'dot', 'dashdot']
         marker_symbols = ['circle', 'square', 'diamond', 'x']
         
@@ -512,7 +512,6 @@ elif page == "📊 Input Metrics & Confusion Matrix":
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
     st.subheader("Interactive Confusion Matrix (Unseen Test Set)")
     
-    # Update array with matrix values from Section 14 (plt.show() heatmap output)
     cm_data = np.array([[547, 7], [2, 580]])
     labels = ['Diseased', 'Normal']
     
