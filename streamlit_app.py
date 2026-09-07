@@ -396,12 +396,6 @@ elif page == "🩺 Diagnostic Image Screening":
     st.subheader("1. Retinal Fundus Image Upload")
     
     uploaded_file = st.file_uploader("Upload Retinal Scan (JPG, PNG)", type=["jpg", "jpeg", "png"])
-    ground_truth_selection = st.selectbox(
-        "Select Ground Truth Label for Metrics/Matrix Tracking:",
-        ["Diseased", "Normal"]
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert('RGB')
         
