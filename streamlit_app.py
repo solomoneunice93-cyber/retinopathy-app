@@ -242,7 +242,7 @@ elif view_selection == "Diagnostic Image Screening":
             pred_label = "Diseased" if pred_class == 1 else "Healthy"
             
             st.markdown("---")
-            st.subheader("Diagnostic Results")
+            st.subheader("Diagnostic Results & Clinical Recommendations")
             
             res_col1, res_col2 = st.columns(2)
             with res_col1:
@@ -250,12 +250,26 @@ elif view_selection == "Diagnostic Image Screening":
             with res_col2:
                 st.metric("Model Confidence", f"{confidence * 100:.2f}%")
 
+            # --- CLINICAL RECOMMENDATION SECTION ---
+            st.markdown("### Clinical Action & Recommendations")
             if pred_class == 1:
                 st.markdown("""
                 <div class="alert-stage3">
-                    ⚠️ ALERT: Pathological lesions detected. Referral to an Ophthalmology Specialist recommended.
+                    ⚠️ <strong>ALERT: Pathological Microvascular Lesions Detected</strong><br>
+                    <strong>Recommended Next Steps:</strong>
+                    <ul>
+                        <li>Schedule an urgent referral to an Ophthalmology Specialist / Retina Clinic.</li>
+                        <li>Perform Optical Coherence Tomography (OCT) to evaluate potential Macular Edema.</li>
+                        <li>Advise patient on tight glycemic and blood pressure control.</li>
+                    </ul>
                 </div>
                 """, unsafe_allow_html=True)
+            else:
+                st.success("""
+                ✅ **No Pathological DR Features Detected**  
+                * **Recommendation:** Routine annual retinal screening recommended.  
+                * Continue standard diabetes care and blood glucose monitoring.
+                """)
 
             # Update Session State Evaluation Data (FIXED: Checks locals() safely to avoid NameError)
             true_class_int = 1 if 'ground_truth_selection' in locals() and ground_truth_selection == "Diseased" else 0
