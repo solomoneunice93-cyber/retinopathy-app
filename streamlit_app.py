@@ -207,7 +207,7 @@ st.markdown("""
         border-radius: 17px;
 
         border: 1px solid #BFDBFE;
-[2026-09-08 11:20] ha'zel: box-shadow:
+        box-shadow:
         0 8px 25px rgba(30,64,175,0.08);
     }
 
@@ -448,7 +448,7 @@ st.markdown("""
         color: #64748B;
 
         font-size: 0.82rem;
-[2026-09-08 11:20] ha'zel: border-top:
+        border-top:
         1px solid #DCE7F5;
     }
 
@@ -551,4 +551,4 @@ if 'patient_docs' not in st.session_state:
 # MODEL DOWNLOAD
 # ============================================================
 
-MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20
+MODEL_FILE_ID = '1liKVBcah0zt-Yku3wIKJ20'
