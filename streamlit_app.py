@@ -408,8 +408,6 @@ elif page == "🩺 Diagnostic Image Screening":
         normal_prob = float(probs[1])
 
         predicted_class_int = 1 if diseased_prob >= 0.50 else 0
-     
-
         stage_name, alert_class, clinical_guidelines = evaluate_severity(diseased_prob)
 
         # Generate Grad-CAM Heatmap
