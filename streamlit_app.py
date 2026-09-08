@@ -1,140 +1,80 @@
 import os
-import io # Python’s built-in Input/Output module for generating in-memory byte buffers
 import torch
 import torch.nn as nn
-from torchvision import models, transforms 
-from PIL import Image 
-import streamlit as st
-import pandas as pd
+from torchvision import models, transforms
+from PIL import Image
 import numpy as np
-import plotly.express as px 
+import cv2
+import pandas as pd
+import gdown
+import streamlit as st
+import plotly.express as px
 import plotly.graph_objects as go
-import gdown 
-import cv2 
-from datetime import datetime
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-# --- TEAM DETAILS ---
-TEAM_NAME = "ML--5th Floor--Group 3"
-SUBMISSION_DATE = "Sept 8, 2026"
-PROJECT_MODEL = "CNN and Deep Learning"
-
-# --- PAGE CONFIGURATION & MEDICAL STYLING (BLUE THEME) ---
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="Diabetic Retinopathy Clinical Portal",
     page_icon="👁️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Custom Clinical CSS Theme - Medical Blue Palette
+# --- CONSTANTS ---
+TEAM_NAME = "ML--5th Floor--Group 3"
+SUBMISSION_DATE = "Sept 8, 2026"
+PROJECT_MODEL = "ResNet18 Transfer Learning"
+
+# --- CUSTOM CSS STYLING ---
 st.markdown("""
 <style>
-/* Faint Blue Main Background */
-.stApp {
-    background-color: #F0F9FF;
-}
-
-/* Deep Blue Header Box */
-.header-box {
-    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
-    padding: 24px;
-    border-radius: 12px;
-    color: white;
-    margin-bottom: 25px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.main-title {
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: #FFFFFF;
-    margin-bottom: 0.2rem;
-}
-
-.subtitle {
-    font-size: 1rem;
-    color: #BFDBFE;
-    margin-bottom: 0.8rem;
-}
-
-.team-meta {
-    font-size: 0.85rem;
-    color: #E0F2FE;
-    border-top: 1px solid rgba(255,255,255,0.2);
-    padding-top: 8px;
-}
-
-/* Medical Cards with Blue Accents */
-.med-card {
-    background-color: #FFFFFF;
-    border: 1px solid #BFDBFE;
-    border-top: 4px solid #2563EB;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-    margin-bottom: 20px;
-}
-
-.alert-normal {
-    background-color: #D1FAE5;
-    color: #065F46;
-    border-left: 6px solid #10B981;
-    padding: 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    margin-top: 10px;
-}
-
-.alert-stage1 {
-    background-color: #FEF3C7;
-    color: #92400E;
-    border-left: 6px solid #F59E0B;
-    padding: 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    margin-top: 10px;
-}
-
-.alert-stage2 {
-    background-color: #FEE2E2;
-    color: #991B1B;
-    border-left: 6px solid #F87171;
-    padding: 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    margin-top: 10px;
-}
-
-.alert-stage3 {
-    background-color: #7F1D1D;
-    color: #FFFFFF;
-    border-left: 6px solid #DC2626;
-    padding: 16px;
-    border-radius: 8px;
-    font-weight: 700;
-    margin-top: 10px;
-}
-
-/* Soft Blue Sidebar */
-[data-testid="stSidebar"] {
-    background-color: #E0F2FE;
-    border-right: 1px solid #BFDBFE;
-}
+    .header-box {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+        padding: 24px;
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin-bottom: 6px;
+        letter-spacing: -0.5px;
+    }
+    .subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 12px;
+    }
+    .team-meta {
+        font-size: 0.85rem;
+        color: #E0F2FE;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding-top: 8px;
+    }
+    .alert-stage3 {
+        background-color: #7F1D1D;
+        color: #FFFFFF;
+        border-left: 6px solid #DC2626;
+        padding: 16px;
+        border-radius: 8px;
+        font-weight: 700;
+        margin-top: 10px;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #E0F2FE;
+        border-right: 1px solid #BFDBFE;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Header Banner
+# --- HEADER BANNER ---
 st.markdown(f"""
 <div class="header-box">
     <div class="main-title">👁️ Clinical Decision Support Portal</div>
     <div class="subtitle">Automated Diagnostic Assessment & Microvascular Evaluation | Ophthalmology AI Support</div>
     <div class="team-meta">
-        <strong>Developed by:</strong> {TEAM_NAME}  |  
-        <strong>Submission Date:</strong> {SUBMISSION_DATE}  |  
-        <strong>Model Architecture:</strong> {PROJECT_MODEL}
+        <strong>Developed by:</strong> {TEAM_NAME} | <strong>Submission Date:</strong> {SUBMISSION_DATE} | <strong>Model Architecture:</strong> {PROJECT_MODEL}
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -144,10 +84,7 @@ if 'evaluation_data' not in st.session_state:
     # Matches exact Colab Test Matrix: 110 TP, 3 FN, 2 FP, 116 TN
     y_true_base = [1]*113 + [0]*118
     y_pred_base = [1]*110 + [0]*3 + [1]*2 + [0]*116
-    st.session_state.evaluation_data = {
-        'y_true': y_true_base,
-        'y_pred': y_pred_base
-    }
+    st.session_state.evaluation_data = {'y_true': y_true_base, 'y_pred': y_pred_base}
 
 if 'history' not in st.session_state:
     st.session_state.history = pd.DataFrame(columns=['Filename', 'Predicted', 'Ground Truth', 'Confidence', 'Timestamp'])
@@ -187,402 +124,193 @@ def generate_gradcam(input_tensor, model, original_image):
     gradients = []
     activations = []
 
-    def backward_hook(module, grad_input, grad_output):
-        gradients.append(grad_output[0])
+    def save_gradient(grad):
+        gradients.append(grad)
 
     def forward_hook(module, input, output):
         activations.append(output)
+        output.register_hook(save_gradient)
 
+    # Hook into the final convolutional layer of ResNet18
     target_layer = model.layer4[1].conv2
-    h1 = target_layer.register_forward_hook(forward_hook)
-    h2 = target_layer.register_full_backward_hook(backward_hook)
+    hook = target_layer.register_forward_hook(forward_hook)
 
     output = model(input_tensor)
-    _, target_class = output.max(1)
-    
+    pred_class = output.argmax(dim=1).item()
+
     model.zero_grad()
-    output[0, target_class].backward()
+    output[0, pred_class].backward()
 
-    h1.remove()
-    h2.remove()
+    hook.remove()
 
-    pooled_gradients = torch.mean(gradients[0], dim=[0, 2, 3])
-    activation = activations[0][0]
-    for i in range(activation.size(0)):
-        activation[i, :, :] *= pooled_gradients[i]
+    grads = gradients[0].cpu().data.numpy()[0]
+    acts = activations[0].cpu().data.numpy()[0]
 
-    heatmap = torch.mean(activation, dim=0).squeeze().detach().cpu().numpy()
-    heatmap = np.maximum(heatmap, 0)
-    if np.max(heatmap) > 0:
-        heatmap /= np.max(heatmap)
+    weights = np.mean(grads, axis=(1, 2))
+    cam = np.zeros(acts.shape[1:], dtype=np.float32)
 
-    orig_np = np.array(original_image.resize((128, 128)))
-    heatmap_resized = cv2.resize(heatmap, (128, 128))
-    heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
-    heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+    for i, w in enumerate(weights):
+        cam += w * acts[i, :, :]
+
+    cam = np.maximum(cam, 0)
+    if np.max(cam) != 0:
+        cam = cam / np.max(cam)
     
-    overlay = cv2.addWeighted(orig_np, 0.6, heatmap_colored, 0.4, 0)
-    return Image.fromarray(overlay)
-
-# --- PDF REPORT GENERATOR ---
-def create_pdf_report(filename, stage_name, diseased_prob, guidelines):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
+    cam = cv2.resize(cam, (original_image.width, original_image.height))
+    heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
+    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
     
-    title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor='#1E3A8A',
-        spaceAfter=12
-    )
+    orig_np = np.array(original_image)
+    overlay = cv2.addWeighted(orig_np, 0.6, heatmap, 0.4, 0)
     
-    body_style = ParagraphStyle(
-        'BodyStyle',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        spaceAfter=8
-    )
+    return overlay, pred_class, torch.softmax(output, dim=1)[0, pred_class].item()
 
-    story = [
-        Paragraph("Diabetic Retinopathy Diagnostic Assessment Report", title_style),
-        Paragraph(f"<b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", body_style),
-        Paragraph(f"<b>File Processed:</b> {filename}", body_style),
-        Paragraph(f"<b>Team / Author:</b> {TEAM_NAME}", body_style),
-        Spacer(1, 12),
-        Paragraph(f"<b>Diagnostic Finding:</b> {stage_name}", body_style),
-        Paragraph(f"<b>DR Probability Score:</b> {diseased_prob*100:.2f}%", body_style),
-        Spacer(1, 12),
-        Paragraph("<b>Clinical Guidelines & Protocol Recommendations:</b>", body_style),
-        Paragraph(guidelines.replace('\n', '<br/>'), body_style),
-        Spacer(1, 12),
-        Paragraph("<i>Disclaimer: Generated for screening support. Consult a licensed ophthalmologist for official diagnosis.</i>", body_style)
-    ]
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
-
-# --- MEDICAL TRANSFORMS & STAGED CLINICAL GUIDELINES ---
-predict_transform = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
-
-def evaluate_severity(diseased_prob):
-    if diseased_prob < 0.40:
-        stage_name = "Normal (Healthy Retina)"
-        alert_class = "alert-normal"
-        guidelines = (
-            "✅ CLINICAL STATUS: ROUTINE FOLLOW-UP\n\n"
-            "🩺 Preventative Care Guidelines:\n"
-            "• Screening: Schedule annual comprehensive dilated eye examinations.\n"
-            "• Glycemic Control: Continue routine HbA1c and blood pressure monitoring.\n"
-            "• Lifestyle Maintenance: Maintain a balanced dietary plan and regular physical activity.\n\n"
-            "⚠️ Disclaimer: General screening output. Regular dilated eye exams remain required."
-        )
-    elif 0.40 <= diseased_prob < 0.60:
-        stage_name = "Stage 1: Mild Diabetic Retinopathy"
-        alert_class = "alert-stage1"
-        guidelines = (
-            "🟡 CLINICAL STATUS: STAGE 1 - MILD DR (MONITORING REQUIRED)\n\n"
-            "💊 Non-Pharmacological & Monitoring Guidelines:\n"
-            "• Strict Glycemic Control: Optimize blood glucose levels to reduce progression risk (target HbA1c < 7.0%).\n"
-            "• Systemic Monitoring: Regulate blood pressure and lipid profile closely.\n"
-            "• Re-evaluation: Schedule a follow-up dilated fundus exam within 6 to 12 months.\n"
-            "• Patient Education: Instruct patient on recognizing early visual disturbance signs.\n\n"
-            "🚨 Disclaimer: Consult a licensed ophthalmologist for clinical evaluation."
-        )
-    elif 0.60 <= diseased_prob < 0.75:
-        stage_name = "Stage 2: Intermediate Diabetic Retinopathy"
-        alert_class = "alert-stage2"
-        guidelines = (
-            "🔴 CLINICAL STATUS: STAGE 2 - INTERMEDIATE DR (CLINICAL INTERVENTION RECOMMENDED)\n\n"
-            "🩺 Intermediate Management Protocols:\n"
-            "• Specialty Referral: Prompt referral to a retinal specialist for comprehensive evaluation.\n"
-            "• Diagnostic Imaging: Consider Optical Coherence Tomography (OCT) to screen for macular edema.\n"
-            "• Aggressive Risk Control: Strict BP control (< 130/80 mmHg) and lipid-lowering therapy.\n"
-            "• Follow-Up Schedule: Repeat clinical retinal evaluation within 3 to 6 months.\n\n"
-            "🚨 Disclaimer: Requires clinical correlation and professional ophthalmic assessment."
-        )
-    else:
-        stage_name = "Stage 3: Severe Diabetic Retinopathy"
-        alert_class = "alert-stage3"
-        guidelines = (
-            "🚨 CLINICAL STATUS: STAGE 3 - SEVERE DR (URGENT MEDICAL & PHARMACOLOGICAL ACTION)\n\n"
-            "💊 Urgent Pharmacological & Therapeutic Interventions:\n"
-            "• Ocular Pharmacotherapy: Evaluation for intravitreal Anti-VEGF therapy (e.g., Ranibizumab, Aflibercept) or intravitreal corticosteroids.\n"
-            "• Advanced Procedures: Immediate evaluation for Panretinal Photocoagulation (PRP) laser therapy or surgical vitrectomy if hemorrhages occur.\n"
-            "• Urgent Referral: High-priority appointment with an ophthalmologist/retinal surgeon within 1-2 weeks.\n"
-            "• Strict Medical Management: Immediate multidisciplinary care with endocrinology for glycemic stabilization.\n\n"
-            "🚨 Critical Disclaimer: High risk of vision loss. Immediate specialist management required."
-        )
-    
-    return stage_name, alert_class, guidelines
-
-# --- SIDEBAR CLINICAL NAVIGATION ---
-st.sidebar.image("https://img.icons8.com/color/96/ophthalmology.png", width=70)
-st.sidebar.title("Clinical Navigation")
-page = st.sidebar.radio("Select View:", [
-    "📖 Overview & Model Architecture",
-    "🩺 Diagnostic Image Screening",
-    "📊 Input Metrics & Confusion Matrix",
-    "📋 Patient Assessment Logs"
-])
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.header("Clinical Navigation")
+view_selection = st.sidebar.radio(
+    "Select View:",
+    ["Overview & Model Architecture", "Diagnostic Image Screening", "Input Metrics & Confusion Matrix", "Patient Assessment Logs"]
+)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Team:** {TEAM_NAME}")
 st.sidebar.markdown(f"**Date:** {SUBMISSION_DATE}")
 
-# PAGE 0: OVERVIEW & PYTHON MODEL ARCHITECTURE
-if page == "📖 Overview & Model Architecture":
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("💡 Why We Built This Diabetic Retinopathy (DR) AI Screening Project")
-    st.markdown("""
-    Diabetic Retinopathy (DR) is an eye disease caused by high blood sugar levels damaging the tiny blood vessels in the back of the eye (retina). It is one of the leading causes of preventable blindness worldwide.
-    * **The Problem:** Early DR has no symptoms, meaning patients often don't realize they have it until permanent vision loss occurs. Manual eye exams require trained ophthalmologists, who are scarce in many regions.
-    * **Our Solution:** This AI tool provides an automated, rapid preliminary screening of retinal scan images (128x128 pixels). It instantly alerts patients and medical professionals whether a scan shows signs of **Diabetic Retinopathy** or a **Healthy Retina**, enabling fast triage and timely medical intervention.
-    """)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("🧠 Google Colab Python CNN Model Architecture & Fine-Tuning Setup")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.markdown("**1. Backbone Architecture: ResNet-18**")
-        st.markdown("""
-        * **Base Network:** Pre-trained `ResNet-18` (Convolutional Neural Network) utilizing residual skip-connections to retain deep image feature maps.
-        * **Fine-Tuning Strategy:** Layers 1 through 3 were frozen (`requires_grad = False`) to preserve general image features. Layer 4 and the custom fully-connected header were unfrozen for targeted medical adaptation.
-        * **Custom Fully-Connected Head:**
-            * `Linear` layer: 512 input features → 256 nodes
-            * `ReLU` activation function for non-linearity
-            * `Dropout(0.4)`: 40% neuron dropout to prevent model overfitting
-            * `Linear` layer: 256 nodes → 2 output classes (Diseased vs. Normal)
-        """)
-    with col_b:
-        st.markdown("**2. Training Pipeline & Class Imbalance Handling**")
-        st.markdown("""
-        * **Data Preprocessing & Augmentation:** Images resized to `128x128`, transformed to PyTorch Tensors, normalized, and augmented with `RandomHorizontalFlip()` and `RandomRotation(15°)`.
-        * **Data Split:** 80% Training / 20% Validation (`random_split`).
-        * **Loss Function:** `CrossEntropyLoss` weighted inversely proportional to class frequencies to combat dataset imbalance.
-        * **Optimizer:** Per-layer `Adam` optimizer (Layer 4 `lr = 0.00001`, Fully-Connected head `lr = 0.0001`).
-        * **Training Strategy:** 30 Epochs with Early Stopping triggered after 11 Epochs.
-        """)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("📈 Google Colab Model Training & Validation Evaluation Metrics")
-    st.markdown("Below is the recorded training and validation performance across the 11 fine-tuning epochs from Google Colab:")
+# --- VIEW 1: OVERVIEW & ARCHITECTURE ---
+if view_selection == "Overview & Model Architecture":
+    st.header("1. System Overview & Model Architecture")
     
-    # Direct numbers from Colab logs
-    colab_metrics = pd.DataFrame({
-        'Epoch': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-        'Train Loss': [0.3620, 0.1890, 0.1795, 0.1380, 0.1380, 0.1205, 0.1030, 0.0868, 0.0930, 0.0883, 0.0803],
-        'Train Accuracy (%)': [85.20, 93.90, 94.40, 95.80, 95.30, 96.30, 96.90, 96.40, 96.92, 97.16, 97.21],
-        'Val Loss': [0.1960, 0.1710, 0.1345, 0.1390, 0.1130, 0.1115, 0.1170, 0.1110, 0.1102, 0.1133, 0.1206],
-        'Val Accuracy (%)': [93.75, 92.85, 94.85, 95.50, 96.00, 96.30, 96.10, 95.85, 96.05, 96.42, 96.42],
-        'Val Precision (%)': [93.00, 94.10, 94.90, 95.40, 95.70, 95.90, 96.00, 96.52, 96.14, 96.57, 96.57],
-        'Val Recall (%)': [93.20, 94.30, 95.10, 95.60, 95.90, 96.10, 96.20, 96.30, 95.92, 96.27, 96.27],
-        'Val F1-Score (%)': [93.10, 94.20, 95.00, 95.50, 95.80, 96.00, 96.10, 96.39, 96.01, 96.39, 96.39]
-    })
-    st.dataframe(colab_metrics, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# PAGE 1: DIAGNOSTIC SCREENING
-elif page == "🩺 Diagnostic Image Screening":
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("1. Retinal Fundus Image Upload")
+    col1, col2 = st.columns([2, 1])
     
-    uploaded_file = st.file_uploader("Upload Retinal Scan (JPG, PNG)", type=["jpg", "jpeg", "png"])
+    with col1:
+        st.subheader("Diabetic Retinopathy AI Diagnostic System")
+        st.write("""
+        This clinical decision support portal leverages a fine-tuned **ResNet-18 Deep Convolutional Neural Network** 
+        trained to detect microvascular lesions, cotton wool spots, hemorrhages, and exudates in retinal fundus photographs.
+        
+        The model processes high-resolution ocular scans, classifies images into **Healthy** or **Diseased (Diabetic Retinopathy)** states, 
+        and computes visual explainability maps using **Grad-CAM (Gradient-weighted Class Activation Mapping)** to highlight relevant pathology.
+        """)
+        
+        st.markdown("### Key Technical Features")
+        st.markdown("* **Deep Feature Extraction:** ResNet-18 residual connections prevent vanishing gradients during deep feature analysis.")
+        st.markdown("* **Visual Explainability:** Integrated Grad-CAM maps highlight exact retinal regions influencing model classification.")
+        st.markdown("* **Real-time Metrics Update:** Dynamic updates to the underlying confusion matrix upon new diagnostic verification.")
+
+    with col2:
+        st.info("### Model Specifications")
+        st.markdown("**Architecture:** ResNet-18")
+        st.markdown("**Input Size:** 224 x 224 x 3")
+        st.markdown("**Classifier:** FC(512 → 256) → ReLU → Dropout(0.4) → FC(256 → 2)")
+        st.markdown("**Framework:** PyTorch & Streamlit")
+
+# --- VIEW 2: DIAGNOSTIC IMAGE SCREENING ---
+elif view_selection == "Diagnostic Image Screening":
+    st.header("1. Retinal Fundus Image Upload")
+    st.write("Upload Retinal Scan (JPG, PNG)")
+    
+    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+
+    # Safe Initialization for ground_truth_selection to prevent NameError
+    ground_truth_selection = "Diseased"
+
     if uploaded_file is not None:
-        image = Image.open(uploaded_file).convert('RGB')
+        col_img1, col_img2 = st.columns(2)
         
-        img_t = predict_transform(image).unsqueeze(0)
-        with torch.no_grad():
-            outputs = model(img_t)
-            probs = torch.softmax(outputs, dim=1)[0]
+        original_img = Image.open(uploaded_file).convert("RGB")
+        with col_img1:
+            st.image(original_img, caption="Uploaded Retinal Fundus Scan", use_container_width=True)
+
+        ground_truth_selection = st.selectbox("Ground Truth Label (Verification):", ["Diseased", "Healthy"])
+
+        # Preprocess Image
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        
+        input_tensor = transform(original_img).unsqueeze(0)
+
+        if st.button("Run Diagnostic Assessment"):
+            with st.spinner("Processing image and generating Grad-CAM activation map..."):
+                overlay, pred_class, confidence = generate_gradcam(input_tensor, model, original_img)
+
+            with col_img2:
+                st.image(overlay, caption="Grad-CAM Pathology Map", use_container_width=True)
+
+            pred_label = "Diseased" if pred_class == 1 else "Healthy"
             
-        diseased_prob = float(probs[0])
-        normal_prob = float(probs[1])
-        
-        predicted_class_int = 1 if diseased_prob >= 0.50 else 0
-        true_class_int = 1 if ground_truth_selection == "Diseased" else 0
+            st.markdown("---")
+            st.subheader("Diagnostic Results")
+            
+            res_col1, res_col2 = st.columns(2)
+            with res_col1:
+                st.metric("Predicted Condition", pred_label)
+            with res_col2:
+                st.metric("Model Confidence", f"{confidence * 100:.2f}%")
 
-        stage_name, alert_class, clinical_guidelines = evaluate_severity(diseased_prob)
+            if pred_class == 1:
+                st.markdown("""
+                <div class="alert-stage3">
+                    ⚠️ ALERT: Pathological lesions detected. Referral to an Ophthalmology Specialist recommended.
+                </div>
+                """, unsafe_allow_html=True)
 
-        # Generate Grad-CAM Heatmap
-        gradcam_img = generate_gradcam(img_t, model, image)
-
-        # Log to Session State and Update Dynamic Evaluation Dataset
-        if not ((st.session_state.history['Filename'] == uploaded_file.name).any()):
+            # Update Session State Evaluation Data
+            true_class_int = 1 if ground_truth_selection == "Diseased" else 0
             st.session_state.evaluation_data['y_true'].append(true_class_int)
-            st.session_state.evaluation_data['y_pred'].append(predicted_class_int)
+            st.session_state.evaluation_data['y_pred'].append(pred_class)
 
+            # Update Session History
             new_entry = pd.DataFrame([{
                 'Filename': uploaded_file.name,
-                'Predicted': stage_name,
+                'Predicted': pred_label,
                 'Ground Truth': ground_truth_selection,
-                'Confidence': f"{max(diseased_prob, normal_prob)*100:.1f}%",
-                'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                'Confidence': f"{confidence * 100:.2f}%",
+                'Timestamp': pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
             }])
             st.session_state.history = pd.concat([st.session_state.history, new_entry], ignore_index=True)
 
-        col1, col2 = st.columns([1, 1.2])
-        with col1:
-            st.markdown('<div class="med-card">', unsafe_allow_html=True)
-            st.subheader("Retinal Imaging & Grad-CAM Heatmap View")
-            
-            subcol_a, subcol_b = st.columns(2)
-            with subcol_a:
-                st.image(image, use_container_width=True, caption="Original Fundus Scan")
-            with subcol_b:
-                st.image(gradcam_img, use_container_width=True, caption="Grad-CAM Focus Heatmap")
-            st.markdown('</div>', unsafe_allow_html=True)
+# --- VIEW 3: METRICS & CONFUSION MATRIX ---
+elif view_selection == "Input Metrics & Confusion Matrix":
+    st.header("3. Clinical Metrics & Validation Performance")
 
-        with col2:
-            st.markdown('<div class="med-card">', unsafe_allow_html=True)
-            st.subheader("Automated Analysis Output")
-            st.progress(diseased_prob, text=f"Diabetic Retinopathy Probability: {diseased_prob*100:.2f}%")
-            st.progress(normal_prob, text=f"Healthy Retina Probability: {normal_prob*100:.2f}%")
-            
-            if 0.38 <= diseased_prob <= 0.42:
-                st.warning("⚠️ Borderline Confidence Assessment — Clinical re-scan or manual review suggested.")
-
-            st.markdown(f'<div class="{alert_class}">Diagnostic Finding: {stage_name}</div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            pdf_data = create_pdf_report(uploaded_file.name, stage_name, diseased_prob, clinical_guidelines)
-            st.download_button(
-                label="📄 Download Diagnostic PDF Report",
-                data=pdf_data,
-                file_name=f"DR_Report_{uploaded_file.name.split('.')[0]}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-
-        st.markdown('<div class="med-card">', unsafe_allow_html=True)
-        st.subheader("2. Clinical Staging Guidelines")
-        st.text_area("Protocol Recommendations", value=clinical_guidelines, height=220)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# PAGE 2: METRICS & CONFUSION MATRIX
-elif page == "📊 Input Metrics & Confusion Matrix":
     y_true = np.array(st.session_state.evaluation_data['y_true'])
     y_pred = np.array(st.session_state.evaluation_data['y_pred'])
 
-    acc = accuracy_score(y_true, y_pred) * 100
-    prec = precision_score(y_true, y_pred, zero_division=0) * 100
-    rec = recall_score(y_true, y_pred, zero_division=0) * 100
-    f1 = f1_score(y_true, y_pred, zero_division=0) * 100
-    cm_data = confusion_matrix(y_true, y_pred, labels=[1, 0])
+    tp = np.sum((y_true == 1) & (y_pred == 1))
+    fp = np.sum((y_true == 0) & (y_pred == 1))
+    fn = np.sum((y_true == 1) & (y_pred == 0))
+    tn = np.sum((y_true == 0) & (y_pred == 0))
 
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("Final Model Validation Evaluation Metrics (Dynamically Updated with Inputs)")
+    accuracy = (tp + tn) / len(y_true) if len(y_true) > 0 else 0
+    sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
+    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Overall Accuracy", f"{accuracy * 100:.1f}%")
+    m2.metric("Sensitivity (Recall)", f"{sensitivity * 100:.1f}%")
+    m3.metric("Specificity", f"{specificity * 100:.1f}%")
+
+    st.subheader("Confusion Matrix")
     
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Accuracy", f"{acc:.2f}%")
-    m2.metric("Precision", f"{prec:.2f}%")
-    m3.metric("Recall", f"{rec:.2f}%")
-    m4.metric("F1-Score", f"{f1:.2f}%")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # TRAINING & VALIDATION PERFORMANCE GRAPHS
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("📉 Training & Validation Performance Curves")
-
-    epochs = list(range(1, 12))
-    train_loss = [0.3620, 0.1890, 0.1795, 0.1380, 0.1380, 0.1205, 0.1030, 0.0868, 0.0930, 0.0883, 0.0803]
-    val_loss = [0.1960, 0.1710, 0.1345, 0.1390, 0.1130, 0.1115, 0.1170, 0.1110, 0.1102, 0.1133, 0.1206]
-    train_acc = [85.20, 93.90, 94.40, 95.80, 95.30, 96.30, 96.90, 96.40, 96.92, 97.16, 97.21]
-    val_acc = [93.75, 92.85, 94.85, 95.50, 96.00, 96.30, 96.10, 95.85, 96.05, 96.42, 96.42]
-    val_prec = [93.00, 94.10, 94.90, 95.40, 95.70, 95.90, 96.00, 96.52, 96.14, 96.57, 96.57]
-    val_rec = [93.20, 94.30, 95.10, 95.60, 95.90, 96.10, 96.20, 96.30, 95.92, 96.27, 96.27]
-    val_f1 = [93.10, 94.20, 95.00, 95.50, 95.80, 96.00, 96.10, 96.39, 96.01, 96.39, 96.39]
-
-    col_g1, col_g2 = st.columns(2)
-
-    # 1. Loss Graph
-    with col_g1:
-        fig_loss = go.Figure()
-        fig_loss.add_trace(go.Scatter(x=epochs, y=train_loss, mode='lines+markers', name='Train Loss', line=dict(color='#1E3A8A')))
-        fig_loss.add_trace(go.Scatter(x=epochs, y=val_loss, mode='lines+markers', name='Validation Loss', line=dict(color='#F59E0B')))
-        fig_loss.update_layout(title="Training vs Validation Loss", xaxis_title="Epoch", yaxis_title="Loss", height=380, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig_loss, use_container_width=True)
-
-    # 2. Accuracy Graph
-    with col_g2:
-        fig_acc = go.Figure()
-        fig_acc.add_trace(go.Scatter(x=epochs, y=train_acc, mode='lines+markers', name='Train Accuracy', line=dict(color='#2563EB')))
-        fig_acc.add_trace(go.Scatter(x=epochs, y=val_acc, mode='lines+markers', name='Validation Accuracy', line=dict(color='#10B981')))
-        fig_acc.update_layout(title="Training vs Validation Accuracy (%)", xaxis_title="Epoch", yaxis_title="Accuracy (%)", height=380, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig_acc, use_container_width=True)
-
-    # 3. Precision, Recall, & F1-Score Graph
-    fig_metrics = go.Figure()
-    fig_metrics.add_trace(go.Scatter(x=epochs, y=val_prec, mode='lines+markers', name='Validation Precision', line=dict(color='#3B82F6')))
-    fig_metrics.add_trace(go.Scatter(x=epochs, y=val_rec, mode='lines+markers', name='Validation Recall', line=dict(color='#8B5CF6')))
-    fig_metrics.add_trace(go.Scatter(x=epochs, y=val_f1, mode='lines+markers', name='Validation F1-Score', line=dict(color='#EC4899')))
-    fig_metrics.update_layout(title="Validation Precision, Recall & F1-Score (%) Across Epochs", xaxis_title="Epoch", yaxis_title="Percentage (%)", height=400, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig_metrics, use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("Interactive Confusion Matrix (Class-Balanced Model)")
-    
-    labels = ['Diseased', 'Normal']
-    
+    cm = [[tn, fp], [fn, tp]]
     fig = px.imshow(
-        cm_data,
-        x=labels,
-        y=labels,
+        cm,
         text_auto=True,
-        color_continuous_scale='Blues',
-        labels=dict(x="Predicted Label", y="True Medical Label", color="Sample Count"),
-        title="Dynamic Validation & Input Confusion Matrix"
+        labels=dict(x="Predicted Label", y="True Label", color="Count"),
+        x=['Healthy (0)', 'Diseased (1)'],
+        y=['Healthy (0)', 'Diseased (1)'],
+        color_continuous_scale="Blues"
     )
-    fig.update_layout(width=600, height=450)
     st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# PAGE 3: PATIENT RECORDS LOG & DOCUMENTS
-elif page == "📋 Patient Assessment Logs":
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("Historic Upload Logs")
+# --- VIEW 4: PATIENT LOGS ---
+elif view_selection == "Patient Assessment Logs":
+    st.header("4. Assessment History & Patient Logs")
+    
     if len(st.session_state.history) > 0:
         st.dataframe(st.session_state.history, use_container_width=True)
     else:
-        st.info("No saved scan records found.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("📁 Patient Medical Documents & External Records")
-    st.markdown("Upload supplemental medical records, lab reports (e.g., HbA1c tests), or previous OCT scans for clinical context.")
-    
-    doc_upload = st.file_uploader(
-        "Upload Medical Document (PDF, PNG, JPG, TXT)", 
-        type=["pdf", "png", "jpg", "jpeg", "txt"], 
-        key="patient_doc_uploader"
-    )
-    
-    doc_notes = st.text_input("Document Category / Clinical Note (e.g., 'HbA1c Lab Report - June 2026')")
-    
-    if st.button("Save Patient Document"):
-        if doc_upload is not None:
-            doc_entry = {
-                "Document Name": doc_upload.name,
-                "Category / Note": doc_notes if doc_notes else "General Medical Record",
-                "Size (KB)": f"{round(doc_upload.size / 1024, 1)} KB",
-                "Date Uploaded": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            st.session_state.patient_docs.append(doc_entry)
-            st.success(f"Successfully attached document: {doc_upload.name}")
-        else:
-            st.warning("Please select a file to upload first.")
-
-    if len(st.session_state.patient_docs) > 0:
-        st.markdown("### Attached Patient Records")
-        st.dataframe(pd.DataFrame(st.session_state.patient_docs), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.info("No patient scans have been processed in this session yet.")
