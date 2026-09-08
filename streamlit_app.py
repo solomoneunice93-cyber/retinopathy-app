@@ -211,7 +211,7 @@ elif view_selection == "Diagnostic Image Screening":
     
     uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-    # Safe Initialization for ground_truth_selection to prevent NameError
+    # Fixed: Define default state before conditional checks to avoid NameError
     ground_truth_selection = "Diseased"
 
     if uploaded_file is not None:
@@ -258,7 +258,7 @@ elif view_selection == "Diagnostic Image Screening":
                 """, unsafe_allow_html=True)
 
             # Update Session State Evaluation Data
-            true_class_int = 1 if ground_truth_selection == "Diseased" else 0
+            true_class_int = 1 if 'ground_truth_selection' in locals() and ground_truth_selection == "Diseased" else 0
             st.session_state.evaluation_data['y_true'].append(true_class_int)
             st.session_state.evaluation_data['y_pred'].append(pred_class)
 
