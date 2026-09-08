@@ -348,7 +348,7 @@ if page == "📖 Overview & Model Architecture":
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="med-card">', unsafe_allow_html=True)
-    st.subheader("🧠 Google Colab Python CNN Model Architecture & Fine-Tuning Setup")
+    st.subheader("Google Colab Python CNN Model Architecture & Fine-Tuning Setup")
     col_a, col_b = st.columns(2)
     with col_a:
         st.markdown("**1. Backbone Architecture: ResNet-18**")
