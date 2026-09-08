@@ -173,8 +173,8 @@ view_selection = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Team:** {TEAM_NAME}")
-st.sidebar.markdown(f"**Date:** {SUBMISSION_DATE}")
+st.sidebar.markdown(f"Team: {TEAM_NAME}")
+st.sidebar.markdown(f"Date: {SUBMISSION_DATE}")
 
 # --- VIEW 1: OVERVIEW & ARCHITECTURE ---
 if view_selection == "Overview & Model Architecture":
@@ -185,24 +185,24 @@ if view_selection == "Overview & Model Architecture":
     with col1:
         st.subheader("Diabetic Retinopathy AI Diagnostic System")
         st.write("""
-        This clinical decision support portal leverages a fine-tuned **ResNet-18 Deep Convolutional Neural Network** 
+        This clinical decision support portal leverages a fine-tuned ResNet-18 Deep Convolutional Neural Network 
         trained to detect microvascular lesions, cotton wool spots, hemorrhages, and exudates in retinal fundus photographs.
         
-        The model processes high-resolution ocular scans, classifies images into **Healthy** or **Diseased (Diabetic Retinopathy)** states, 
-        and computes visual explainability maps using **Grad-CAM (Gradient-weighted Class Activation Mapping)** to highlight relevant pathology.
+        The model processes high-resolution ocular scans, classifies images into Healthy or Diseased (Diabetic Retinopathy) states, 
+        and computes visual explainability maps using Grad-CAM (Gradient-weighted Class Activation Mapping) to highlight relevant pathology.
         """)
         
         st.markdown("### Key Technical Features")
-        st.markdown("* **Deep Feature Extraction:** ResNet-18 residual connections prevent vanishing gradients during deep feature analysis.")
-        st.markdown("* **Visual Explainability:** Integrated Grad-CAM maps highlight exact retinal regions influencing model classification.")
-        st.markdown("* **Real-time Metrics Update:** Dynamic updates to the underlying confusion matrix upon new diagnostic verification.")
+        st.markdown("* Deep Feature Extraction: ResNet-18 residual connections prevent vanishing gradients during deep feature analysis.")
+        st.markdown("* Visual Explainability: Integrated Grad-CAM maps highlight exact retinal regions influencing model classification.")
+        st.markdown("* Real-time Metrics Update: Dynamic updates to the underlying confusion matrix upon new diagnostic verification.")
 
     with col2:
         st.info("### Model Specifications")
-        st.markdown("**Architecture:** ResNet-18")
-        st.markdown("**Input Size:** 224 x 224 x 3")
-        st.markdown("**Classifier:** FC(512 → 256) → ReLU → Dropout(0.4) → FC(256 → 2)")
-        st.markdown("**Framework:** PyTorch & Streamlit")
+        st.markdown("Architecture: ResNet-18")
+        st.markdown("Input Size: 224 x 224 x 3")
+        st.markdown("Classifier: FC(512 → 256) → ReLU → Dropout(0.4) → FC(256 → 2)")
+        st.markdown("Framework: PyTorch & Streamlit")
 
 # --- VIEW 2: DIAGNOSTIC IMAGE SCREENING ---
 elif view_selection == "Diagnostic Image Screening":
@@ -211,7 +211,7 @@ elif view_selection == "Diagnostic Image Screening":
     
     uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-    # Fixed: Define default state before conditional checks to avoid NameError
+    # Safe Initialization for ground_truth_selection to prevent NameError
     ground_truth_selection = "Diseased"
 
     if uploaded_file is not None:
@@ -257,7 +257,7 @@ elif view_selection == "Diagnostic Image Screening":
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Update Session State Evaluation Data
+            # Update Session State Evaluation Data (FIXED: Checks locals() safely to avoid NameError)
             true_class_int = 1 if 'ground_truth_selection' in locals() and ground_truth_selection == "Diseased" else 0
             st.session_state.evaluation_data['y_true'].append(true_class_int)
             st.session_state.evaluation_data['y_pred'].append(pred_class)
