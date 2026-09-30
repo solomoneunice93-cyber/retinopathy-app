@@ -1,5 +1,5 @@
 import os
-import io #Python’s built-in Input/Output module for generating in-memory byte buffers
+import io #Python’s  built-in Input/Output module for generating in-memory byte buffers
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
